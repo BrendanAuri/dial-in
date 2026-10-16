@@ -2,17 +2,21 @@ import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 
 import { PACKS } from '../../content';
 import type { Level, Pack } from '../../content/schema';
 import { ComparePlayer } from '../../engine/comparePlayer';
-import { DEFAULT_HOLD_TIME, LIVE_START_DELAY } from '../../engine/constants';
+import { DEFAULT_HOLD_TIME, HINT_COST, LIVE_START_DELAY, PASS_MARK } from '../../engine/constants';
 import { midiToNoteName } from '../../engine/notes';
 import { PARAM_IDS, type ParamId, type Patch } from '../../engine/params';
-import { setParam } from '../../engine/patch';
+import { patchesEqual, setParam } from '../../engine/patch';
 import { findLevel, getPack, packLevels } from '../../game/packs';
 import { formatReplayCode, parseReplayCode } from '../../game/replayCode';
 import { randomSeed } from '../../game/rng';
 import { generateRound, type GeneratedRound } from '../../game/targetGenerator';
+import type { ListeningContext } from '../../scoring/audible';
+import { hintFor } from '../../scoring/feedback';
+import { scoreParams } from '../../scoring/paramScore';
+import { scoreRound, type RoundResult } from '../../scoring/scoreRound';
 import type { LiveAudio } from '../audio';
 import { ReplayCodeDialog } from '../components/ReplayCodeDialog';
-import { RevealCard } from '../components/RevealCard';
+import { ResultCard } from '../components/ResultCard';
 import { SynthPanel } from '../components/SynthPanel';
 import { isButtonLike, isTypingTarget } from '../hooks';
 
@@ -25,7 +29,12 @@ interface RoundState {
   readonly ref: LevelRef;
   readonly round: GeneratedRound;
   readonly mine: Patch;
-  readonly revealed: boolean;
+  /** The latest submitted attempt, or null before the first submit / after Try again. */
+  readonly result: RoundResult | null;
+  /** Best score on this round so far. */
+  readonly best: number | null;
+  readonly hintsUsed: number;
+  readonly hint: string | null;
   /** Rounds played in this level since it was picked. */
   readonly number: number;
   /** Shown above the round, e.g. when a replay code is from an older pack version. */
@@ -36,11 +45,15 @@ const LEVELS: readonly LevelRef[] = PACKS.flatMap((pack) => packLevels(pack).map
 
 function newRound(ref: LevelRef, seed: number, number: number, notice: string | null = null): RoundState {
   const round = generateRound(ref.pack, ref.level, seed);
-  return { ref, round, mine: { ...round.start }, revealed: false, number, notice };
+  return { ref, round, mine: { ...round.start }, result: null, best: null, hintsUsed: 0, hint: null, number, notice };
 }
 
 function levelKey(ref: LevelRef): string {
   return `${ref.pack.id}/${ref.level.id}`;
+}
+
+function listening(round: GeneratedRound): ListeningContext {
+  return { note: round.note, holdTime: DEFAULT_HOLD_TIME };
 }
 
 interface RoundScreenProps {
@@ -54,8 +67,8 @@ export function RoundScreen({ audio }: RoundScreenProps) {
 }
 
 /**
- * A round: hear the target, match it with the unlocked controls, then
- * reveal. Driven by the test levels until the Foundations pack exists.
+ * A round: hear the target, match it with the unlocked controls, submit for
+ * a score and tips. Driven by the test levels until the Foundations pack exists.
  */
 function Round({ audio, first }: RoundScreenProps & { readonly first: LevelRef }) {
   const [state, setState] = useState<RoundState>(() => newRound(first, randomSeed(), 1));
@@ -64,9 +77,12 @@ function Round({ audio, first }: RoundScreenProps & { readonly first: LevelRef }
   const [codeDialogOpen, setCodeDialogOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const { ref, round, mine, revealed } = state;
+  const { ref, round, mine, result } = state;
+  const passMark = ref.level.passMark ?? PASS_MARK;
   const locked = useMemo(() => new Set(PARAM_IDS.filter((id) => !round.unlocked.includes(id))), [round]);
   const code = formatReplayCode({ packId: ref.pack.id, levelId: ref.level.id, packVersion: ref.pack.version, seed: round.seed });
+  const changedSinceSubmit = result !== null && !patchesEqual(result.mine, mine);
+  const showNext = result !== null && !changedSinceSubmit;
 
   useEffect(() => {
     player.updateMine(mine, audio.ctx.currentTime);
@@ -74,9 +90,11 @@ function Round({ audio, first }: RoundScreenProps & { readonly first: LevelRef }
 
   useEffect(() => () => player.stop(audio.ctx.currentTime), [player, audio]);
 
+  // Bring the result into view when it appears.
+  const resultShown = result !== null;
   useEffect(() => {
-    if (revealed) document.getElementById('reveal-title')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, [revealed]);
+    if (resultShown) document.getElementById('result-title')?.closest('.card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [resultShown, state.best]);
 
   useEffect(() => {
     if (!copied) return;
@@ -105,8 +123,28 @@ function Round({ audio, first }: RoundScreenProps & { readonly first: LevelRef }
     if (!player.flip(time)) player.playAB(patches, round.note, time, DEFAULT_HOLD_TIME);
   }, [player, patches, round, eventTime]);
 
-  const reveal = useCallback(() => setState((s) => ({ ...s, revealed: true })), []);
-  const retry = useCallback(() => setState((s) => ({ ...s, mine: { ...s.round.start }, revealed: false })), []);
+  const submit = useCallback(() => {
+    setState((s) => {
+      const scored = scoreRound({
+        target: s.round.target,
+        mine: s.mine,
+        unlocked: s.round.unlocked,
+        context: listening(s.round),
+        hintsUsed: s.hintsUsed,
+        passMark: s.ref.level.passMark ?? PASS_MARK,
+      });
+      return { ...s, result: scored, best: Math.max(s.best ?? 0, scored.score.score), hint: null };
+    });
+  }, []);
+
+  const hint = useCallback(() => {
+    setState((s) => {
+      const params = scoreParams(s.round.target, s.mine, s.round.unlocked, listening(s.round));
+      return { ...s, hintsUsed: s.hintsUsed + 1, hint: hintFor(params, s.mine, s.round.target) };
+    });
+  }, []);
+
+  const retry = useCallback(() => setState((s) => ({ ...s, result: null })), []);
   const next = useCallback(() => setState((s) => newRound(s.ref, randomSeed(), s.number + 1)), []);
   const resetKnobs = useCallback(() => setState((s) => ({ ...s, mine: { ...s.round.start } })), []);
 
@@ -142,7 +180,7 @@ function Round({ audio, first }: RoundScreenProps & { readonly first: LevelRef }
     void navigator.clipboard?.writeText(code).then(() => setCopied(true));
   };
 
-  // Space: target · M: mine · B: A/B · Enter: reveal, then next round.
+  // Space: target · M: mine · B: A/B · Enter: submit, then next round.
   useEffect(() => {
     if (codeDialogOpen) return;
     function onKeyDown(event: KeyboardEvent): void {
@@ -157,13 +195,13 @@ function Round({ audio, first }: RoundScreenProps & { readonly first: LevelRef }
         playAB();
       } else if (event.code === 'Enter' && !onButton) {
         event.preventDefault();
-        if (revealed) next();
-        else reveal();
+        if (showNext) next();
+        else submit();
       }
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [codeDialogOpen, playTarget, playMine, playAB, reveal, next, revealed]);
+  }, [codeDialogOpen, playTarget, playMine, playAB, submit, next, showNext]);
 
   const hearingLabel = playback.hearing === 'mine' ? 'yours' : 'target';
 
@@ -196,13 +234,30 @@ function Round({ audio, first }: RoundScreenProps & { readonly first: LevelRef }
       )}
       <p className="level-intro">{ref.level.intro}</p>
 
-      {revealed && (
-        <RevealCard unlocked={round.unlocked} target={round.target} mine={mine} onRetry={retry} onNext={next} />
+      {result && (
+        <ResultCard
+          result={result}
+          target={round.target}
+          best={state.best ?? result.score.score}
+          passMark={passMark}
+          changed={changedSinceSubmit}
+          onRetry={retry}
+          onNext={next}
+        />
+      )}
+
+      {state.hint && !result && (
+        <p className="hint-text" role="status">
+          <strong>Hint:</strong> {state.hint}
+        </p>
       )}
 
       <SynthPanel patch={mine} onChange={onParamChange} locked={locked} />
 
       <div className="round-tools">
+        <button type="button" className="button" onClick={hint} disabled={result !== null}>
+          Hint (−{HINT_COST})
+        </button>
         <button type="button" className="button" onClick={resetKnobs}>
           Reset knobs
         </button>
@@ -217,7 +272,7 @@ function Round({ audio, first }: RoundScreenProps & { readonly first: LevelRef }
         </button>
       </div>
 
-      <p className="hint">Space plays the target · M plays yours · B for A/B · Enter to reveal</p>
+      <p className="hint">Space plays the target · M plays yours · B for A/B · Enter to submit</p>
 
       <div className="dock round-dock">
         <button
@@ -244,8 +299,8 @@ function Round({ audio, first }: RoundScreenProps & { readonly first: LevelRef }
           A/B
           {playback.playing === 'ab' && <span className="ab-hearing">{hearingLabel}</span>}
         </button>
-        <button type="button" className="button reveal-button" onClick={revealed ? next : reveal}>
-          {revealed ? 'Next' : 'Reveal'}
+        <button type="button" className="button submit-button" onClick={showNext ? next : submit}>
+          {showNext ? 'Next' : 'Submit'}
         </button>
       </div>
 

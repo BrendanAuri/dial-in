@@ -131,11 +131,11 @@ Implementation notes:
 
 1. Generate a target patch from the level's generator spec, using only the level's unlocked controls; locked controls use the level's fixed values and are shown greyed out (a module with every control locked shows only its title).
 2. Player can **Play target**, **Play mine**, and **A/B** (same note, same length). A/B plays both in sync starting on the target; pressing it again while it plays flips between them with a short crossfade. Knob changes are heard straight away on your sounding note.
-3. **Submit** → score, top three feedback tips, and a reveal table (target vs mine for every unlocked control) with both spectra overlaid.
-4. **Retry** the same target (best score kept) or **Next**.
+3. **Submit** → score, top three feedback tips, and a reveal table (target vs mine for every unlocked control, with a closeness meter, each control's tip, and a reason for any control that isn't scored) with both spectra overlaid (Milestone 8). Changing the sound after submitting shows a note and turns Next back into Submit, so it can be rescored.
+4. **Retry** the same target, keeping your knobs (best score kept), or **Next**.
 5. **Hint** (optional): costs 10 points; names the control that's furthest off and which direction to move it, without the value.
 
-Target generator: seeded RNG; the result card shows a replay code (`packId/levelId@packVersion:seed`) so any round can be replayed. Reject near-silent targets and targets too close to the starting knob positions.
+Target generator: seeded RNG; the result card shows a replay code (`packId/levelId@packVersion:seed`) so any round can be replayed. Reject near-silent or too-short targets (a rough loudness estimate from the envelope and filter), and targets too close to the starting knob positions: at least one of the level's new controls must be audible in the target and far enough off that the starting knobs would score at most 0.5 closeness on it.
 
 ## 7. Packs and chapters
 
@@ -234,11 +234,16 @@ For each unlocked **and audible** parameter `p`:
 ### 8.2 Audibility rules (`isAudible`)
 Skip a parameter when it can't be heard in the **target**, for example:
 - resonance when cutoff is near the top of the range
-- `fenv.decay` when `fenv.amount` is 0
-- `lfo.rate` and `lfo.depth` when `lfo.target` is off; `lfo.target` when depth is 0
-- `amp.decay` when sustain is 1
-- `osc2.detune` differences under about 2 cents
+- `fenv.decay` when the filter envelope doesn't move the cutoff (`fenv.amount` is 0, or cutoff is already at the top); `fenv.amount` when cutoff is at the top
+- `lfo.rate` and `lfo.depth` when the target's LFO is effectively off (`lfo.target` is off or depth is near 0)
+- `amp.decay` when sustain is 1; `amp.decay` and `amp.sustain` when the attack lasts the whole note
+- `amp.release` when the note has already faded out before release
+- `osc2.detune` differences under about 2 cents (a deadband in the distance)
 - waveform differences when cutoff is so low that only the fundamental passes
+
+`lfo.target` is always scored, by what you hear: if the target's LFO is effectively off, yours must be too; otherwise the targets must match. That way adding movement to a still target costs points, and a depth mistake isn't also counted as a target mistake.
+
+Each skipped control shows its reason in the reveal table.
 
 ### 8.3 Audio score (safety net)
 Render both patches with `renderPatch` (same note, same length, 44.1 kHz, RMS-matched). Extract per frame with Meyda (buffer 2048, hop 512): RMS, spectral centroid, 13 MFCCs. Compare:
@@ -249,7 +254,7 @@ Render both patches with `renderPatch` (same note, same length, 44.1 kHz, RMS-ma
 Map each to 0–100 with calibration constants and average them. Build a hidden **dev calibration page** that renders pairs (identical, slightly off, very off) and prints the raw distances, so the constants can be tuned by ear.
 
 ### 8.4 Final score
-`final = round(0.7 × paramScore + 0.3 × audioScore)`, except if `audioScore ≥ 95` then `final = max(final, 90)`, so different settings that sound the same still pass. Default pass mark 80 (packs can override per level). Stars at 80 / 90 / 97.
+`final = round(0.7 × paramScore + 0.3 × audioScore)`, except if `audioScore ≥ 95` then `final = max(final, 90)`, so different settings that sound the same still pass. Hints then take 10 points each off the rounded score (never below 0). Default pass mark 80 (packs can override per level). Stars at 80 / 90 / 97. Until audio scoring exists (Milestone 5), `final` is the parameter score alone.
 
 ### 8.5 Feedback
 For each audible parameter with `c < 0.8`, generate one tip that gives direction and size in musician's language, explains what you'd hear, and ties it to the spectrum where helpful:

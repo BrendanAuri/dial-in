@@ -286,3 +286,20 @@ export const MODULES: readonly { readonly id: EngineModule; readonly label: stri
 export function paramsInModule(module: EngineModule): ParamId[] {
   return PARAM_IDS.filter((id) => PARAMS[id].module === module);
 }
+
+/** Labels that need their module to make sense on their own: shared ones, plus a few generic words. */
+const CONTEXT_LABELS = new Set([
+  ...PARAM_IDS.map((id) => PARAMS[id].label).filter((label, i, all) => all.indexOf(label) !== i),
+  'Amount',
+  'Rate',
+  'Depth',
+  'Target',
+]);
+
+/** A control's name, with its module added where the label alone is unclear ("Amp envelope decay", "LFO rate"). */
+export function controlName(id: ParamId): string {
+  const def = PARAMS[id];
+  if (!CONTEXT_LABELS.has(def.label)) return def.label;
+  const module = MODULES.find((m) => m.id === def.module)?.label ?? def.module;
+  return `${module} ${def.label.toLowerCase()}`;
+}

@@ -7,7 +7,9 @@ import { PARAMS, PARAM_IDS } from '../engine/params';
 import { DEFAULT_PATCH } from '../engine/patch';
 import { FIXTURE_PACK } from './fixtures';
 import { findLevel, packLevels } from './packs';
-import { estimateLoudness, maxDistance } from './targetChecks';
+import { isAudible } from '../scoring/audible';
+import { paramDistance } from '../scoring/paramScore';
+import { estimateLoudness } from './targetChecks';
 import { generateRound, startingPatch } from './targetGenerator';
 
 function level(id: string): Level {
@@ -50,9 +52,9 @@ describe('generateRound', () => {
   });
 
   it('uses the off value some of the time when there is an off chance', () => {
-    const depths = SEEDS.map((seed) => generateRound(FIXTURE_PACK, level('lfo'), seed).target['lfo.depth']);
-    expect(depths.filter((d) => d === 0).length).toBeGreaterThan(30);
-    expect(depths.filter((d) => d >= 0.2 && d <= 0.6).length).toBeGreaterThan(30);
+    const cutoffs = SEEDS.map((seed) => generateRound(FIXTURE_PACK, level('lfo'), seed).target['filter.cutoff']);
+    expect(cutoffs.filter((c) => c === 12000).length).toBeGreaterThan(30);
+    expect(cutoffs.filter((c) => c >= 200 && c <= 2000).length).toBeGreaterThan(30);
   });
 
   it('picks notes inside the level range', () => {
@@ -64,12 +66,25 @@ describe('generateRound', () => {
     expect(generateRound(FIXTURE_PACK, level('cutoff'), 5).note).toBe(noteNameToMidi('A2'));
   });
 
-  it('moves at least one of the level’s new controls away from the start', () => {
-    for (const seed of SEEDS) {
-      const round = generateRound(FIXTURE_PACK, level('cutoff'), seed);
-      if (round.attempts < TARGET_MAX_ATTEMPTS) {
-        expect(maxDistance(['filter.cutoff'], round.target, round.start)).toBeGreaterThanOrEqual(TARGET_MIN_START_DISTANCE);
+  it('moves at least one of the level’s new controls audibly away from the start', () => {
+    for (const id of ['cutoff', 'lfo']) {
+      const current = level(id);
+      for (const seed of SEEDS) {
+        const round = generateRound(FIXTURE_PACK, current, seed);
+        const context = { note: round.note, holdTime: DEFAULT_HOLD_TIME };
+        const moved = current.newControls.some(
+          (control) =>
+            isAudible(control, round.target, context) &&
+            paramDistance(control, round.start, round.target) >= TARGET_MIN_START_DISTANCE,
+        );
+        expect(moved, `${id} seed ${seed}`).toBe(true);
       }
+    }
+  });
+
+  it('never counts an LFO with no depth as a change', () => {
+    for (const seed of SEEDS) {
+      expect(generateRound(FIXTURE_PACK, level('lfo'), seed).target['lfo.depth']).toBeGreaterThan(0);
     }
   });
 });

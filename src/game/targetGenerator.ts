@@ -22,9 +22,11 @@ import {
 } from '../engine/params';
 import { patchFromRecord } from '../engine/patch';
 import { fromNormalised } from '../engine/scale';
+import { isAudible } from '../scoring/audible';
+import { paramDistance } from '../scoring/paramScore';
 import { unlockedControls } from './packs';
 import { chance, createRng, logUniform, pick, uniform, weightedPick, type Rng } from './rng';
-import { estimateLoudness, maxDistance } from './targetChecks';
+import { estimateLoudness } from './targetChecks';
 
 export interface GeneratedRound {
   readonly seed: number;
@@ -69,14 +71,18 @@ function sampleTarget(rng: Rng, level: Level, unlocked: ReadonlySet<ParamId>, st
   return patchFromRecord(record, start);
 }
 
-/** Loud and long enough to judge, and not a freebie from the starting knobs. */
+/**
+ * Loud and long enough to judge, and not a freebie from the starting
+ * knobs: at least one focus control must be audible in the target and
+ * moved away from where it starts.
+ */
 export function isFairTarget(target: Patch, start: Patch, note: number, focus: readonly ParamId[]): boolean {
+  const context = { note, holdTime: DEFAULT_HOLD_TIME };
   const loudness = estimateLoudness(target, note, DEFAULT_HOLD_TIME);
-  return (
-    loudness.peakDb >= TARGET_MIN_PEAK_DB &&
-    loudness.audibleSeconds >= TARGET_MIN_AUDIBLE_SECONDS &&
-    maxDistance(focus, target, start) >= TARGET_MIN_START_DISTANCE
+  const moved = focus.some(
+    (id) => isAudible(id, target, context) && paramDistance(id, start, target) >= TARGET_MIN_START_DISTANCE,
   );
+  return loudness.peakDb >= TARGET_MIN_PEAK_DB && loudness.audibleSeconds >= TARGET_MIN_AUDIBLE_SECONDS && moved;
 }
 
 export function generateRound(pack: Pack, level: Level, seed: number): GeneratedRound {

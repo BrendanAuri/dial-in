@@ -2,6 +2,7 @@
  * Every tunable number in the app lives here. Parameter ranges and defaults
  * live in the parameter schema (params.ts).
  */
+import type { ContinuousParamId, ParamId } from './params';
 
 // ── Pitch ────────────────────────────────────────────────────────────────
 export const A4_MIDI = 69;
@@ -47,14 +48,87 @@ export const TARGET_MIN_PEAK_DB = -24;
 export const TARGET_MIN_AUDIBLE_SECONDS = 0.08;
 export const TARGET_AUDIBLE_LEVEL = 0.1;
 /**
- * At least one of the level's new controls must sit this far (as a 0–1
- * knob position) from where the knobs start, so Submit alone can't win.
+ * At least one of the level's audible new controls must be at least this
+ * scoring distance from where the knobs start (so the starting knobs
+ * score at most 1 − this on it), so Submit alone can't win.
  */
-export const TARGET_MIN_START_DISTANCE = 0.2;
+export const TARGET_MIN_START_DISTANCE = 0.5;
 /** Rough lowpass slope used when estimating loudness, in dB per octave. */
 export const FILTER_SLOPE_DB_PER_OCTAVE = 12;
 /** Time step for the loudness estimate, in seconds. */
 export const LOUDNESS_STEP_SECONDS = 0.005;
+
+// ── Scoring ──────────────────────────────────────────────────────────────
+/**
+ * How far off a control can be before its closeness reaches zero.
+ * Log controls: octaves (a factor of 2 per octave). Linear controls:
+ * a fraction of the range.
+ */
+export const SCORE_TOLERANCE: Readonly<Record<ContinuousParamId, number>> = {
+  'osc2.detune': 0.5,
+  'noise.level': 0.5,
+  'filter.cutoff': 2,
+  'filter.resonance': 0.5,
+  'fenv.amount': 0.5,
+  'fenv.decay': 3,
+  'amp.attack': 3,
+  'amp.decay': 3,
+  'amp.sustain': 0.5,
+  'amp.release': 3,
+  'lfo.rate': 2,
+  'lfo.depth': 0.5,
+};
+/** Differences smaller than this (in the control's units) count as exact. */
+export const SCORE_DEADBAND: Readonly<Partial<Record<ContinuousParamId, number>>> = {
+  'osc2.detune': 2,
+};
+/** Relative weight of each control in the score. */
+export const SCORE_WEIGHTS: Readonly<Record<ParamId, number>> = {
+  'osc.wave': 2,
+  'osc.octave': 1,
+  'osc2.detune': 1,
+  'noise.level': 1,
+  'filter.cutoff': 2,
+  'filter.resonance': 1,
+  'fenv.amount': 1,
+  'fenv.decay': 1,
+  'amp.attack': 1,
+  'amp.decay': 1,
+  'amp.sustain': 1,
+  'amp.release': 1,
+  'lfo.target': 1,
+  'lfo.rate': 1,
+  'lfo.depth': 1,
+};
+/** Controls with closeness below this get a feedback tip. */
+export const TIP_CLOSENESS = 0.8;
+/** Tips shown on the result card (the reveal table shows all). */
+export const RESULT_TIPS = 3;
+/** Default pass mark; levels can set their own. */
+export const PASS_MARK = 80;
+/** Scores needed for one, two and three stars. */
+export const STAR_SCORES = [80, 90, 97] as const;
+/** Points taken off the round's score for each hint. */
+export const HINT_COST = 10;
+/** An attack shorter than this is described as instant, in seconds. */
+export const INSTANT_ATTACK = 0.01;
+
+// ── Audibility (what can't be heard in the target isn't scored) ──────────
+/** Resonance can't be heard with the cutoff at or above this, in Hz. */
+export const RESONANCE_AUDIBLE_MAX_CUTOFF = 12000;
+/** Filter envelope movement below this many octaves doesn't count. */
+export const FILTER_ENV_MIN_AUDIBLE_OCTAVES = 0.05;
+/** LFO depth below this counts as no LFO. */
+export const LFO_MIN_AUDIBLE_DEPTH = 0.02;
+/** Sustain at or above this counts as full, so decay can't be heard. */
+export const SUSTAIN_FULL = 0.99;
+/** If the envelope has fallen below this by the end of the hold, release can't be heard. */
+export const RELEASE_MIN_AUDIBLE_LEVEL = 0.01;
+/**
+ * Waveform can't be heard when the cutoff never rises above the note's
+ * fundamental times this (only the fundamental gets through).
+ */
+export const WAVEFORM_MIN_CUTOFF_RATIO = 1;
 
 // ── Sound library ────────────────────────────────────────────────────────
 export const LIBRARY_SCHEMA_VERSION = 1;

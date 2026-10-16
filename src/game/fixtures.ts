@@ -51,6 +51,7 @@ export const FIXTURE_PACK: Pack = {
           fixed: {},
           generator: {
             params: {
+              'filter.cutoff': { kind: 'range', min: 200, max: 2000, offChance: 0.5, offValue: 12000 },
               'lfo.target': { kind: 'choice', options: ['pitch'] },
               'lfo.depth': { kind: 'range', min: 0.2, max: 0.6, offChance: 0.5, offValue: 0 },
             },

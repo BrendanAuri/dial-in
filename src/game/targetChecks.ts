@@ -1,7 +1,7 @@
 /**
- * Quick checks the generator uses to reject unfair targets: ones that are
- * (nearly) silent or too short to judge, and ones too close to where the
- * knobs start. Rough maths on the patch, no audio rendering.
+ * Loudness check the generator uses to reject targets that are (nearly)
+ * silent or too short to judge. Rough maths on the patch, no audio
+ * rendering.
  */
 import {
   FILTER_SLOPE_DB_PER_OCTAVE,
@@ -11,8 +11,7 @@ import {
 } from '../engine/constants';
 import { ampEnvelopeValue, filterEnvPeakOctaves, releaseValue, segmentTimeConstant } from '../engine/modulation';
 import { midiToHz } from '../engine/notes';
-import { PARAMS, isContinuousId, type ParamId, type Patch } from '../engine/params';
-import { toNormalised } from '../engine/scale';
+import { PARAMS, type Patch } from '../engine/params';
 
 export interface LoudnessEstimate {
   /** Loudest moment of the note's fundamental, in dB (0 = full level). */
@@ -48,18 +47,4 @@ export function estimateLoudness(patch: Readonly<Patch>, note: number, holdTime:
     peakDb: peak > 0 ? 20 * Math.log10(peak) : -Infinity,
     audibleSeconds: audibleSteps * LOUDNESS_STEP_SECONDS,
   };
-}
-
-/** How far one control is from another value, as a 0–1 knob position (discrete: 0 or 1). */
-export function controlDistance(id: ParamId, a: Readonly<Patch>, b: Readonly<Patch>): number {
-  if (isContinuousId(id)) {
-    const def = PARAMS[id];
-    return Math.abs(toNormalised(def, a[id]) - toNormalised(def, b[id]));
-  }
-  return a[id] === b[id] ? 0 : 1;
-}
-
-/** The largest distance between two patches across `ids`. */
-export function maxDistance(ids: readonly ParamId[], a: Readonly<Patch>, b: Readonly<Patch>): number {
-  return ids.reduce((max, id) => Math.max(max, controlDistance(id, a, b)), 0);
 }

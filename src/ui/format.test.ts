@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { PARAMS } from '../engine/params';
+import { controlName, PARAMS } from '../engine/params';
 import { DEFAULT_PATCH } from '../engine/patch';
-import { controlName, formatParam, formatValue } from './format';
+import { formatParam, formatValue } from './format';
 
 describe('formatParam and controlName', () => {
   it('formats choices by label and numbers with units', () => {
