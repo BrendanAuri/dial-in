@@ -270,17 +270,22 @@ Sort by impact (`weight × (1 − c)`). Show the top three on the result card; s
 The synth as an instrument: no targets, no scores.
 
 - **Controls**: every engine control, regardless of progress (see open questions). Same Knob and Selector components as rounds.
-- **Keyboard**: on-screen keyboard (two octaves, octave shift, and a latch toggle that holds the note so you can tweak knobs with both hands on mobile). Desktop: A–K for white keys, W E T Y U for black keys, Z / X for octave down / up.
-- **Voices**: polyphonic up to `MAX_VOICES` (starting at 8) via `voiceManager.ts`, each note its own `buildVoice`. A **Mono** switch uses last-note priority (glide comes later as an engine module).
+- **Two ways to audition**:
+  - **Play**: a short note (the same length as a round's) of the last note played. Space on desktop. Turns Hold off.
+  - **Hold**: keeps notes sounding so knob changes can be heard live. Works like a sustain pedal: while it's on, released keys keep sounding; turning it off releases them. Turned on with nothing playing, it sustains the last note played.
+- **Keyboard**: on-screen keyboard (one octave on phones, two from `KEYBOARD_TWO_OCTAVE_MIN_WIDTH`, octave shift, multi-touch). Desktop: A–K for white keys, W E T Y U for black keys, Z / X for octave down / up, key letters shown on the keys.
+- **Voices**: polyphonic up to `MAX_VOICES` (starting at 8) via `voiceManager.ts`, each note its own `buildVoice`; the oldest releasing voice is stolen first. A **Mono** switch uses last-note priority (glide comes later as an engine module).
 - **Live edits**: knob changes are heard on held notes straight away (see `VoiceHandle.update`).
-- **Init**, **Randomise**, **Undo** and **Redo**. Randomise draws from the Foundations sound-type templates so results are musical rather than noise.
-- **Spectrum**: the same live analyser view as rounds.
+- **New** (init patch as a new, unsaved sound), **Randomise**, **Undo** and **Redo** (Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z; a knob drag is one step). Randomise will draw from the Foundations sound-type templates; until those exist (Milestone 6) it uses musical ranges in `RANDOMISE`.
+- **Session**: the working sound, its unsaved changes, voice mode and octave are kept across reloads, since mobile browsers often reload backgrounded tabs.
+- **Spectrum**: the same live analyser view as rounds (Milestone 8).
 - **Library**:
   - Save, Save as, rename, duplicate, delete (with confirmation), favourite, tags, search, sort by recent or name.
   - Each saved sound: `{ id, name, tags, favourite, createdAt, updatedAt, source, patch }`, where `source` is `user` or `preset:<packId>`.
   - Factory presets from packs are read-only; saving an edited preset creates a user copy.
-  - **Export / import** the whole library or a single sound as a JSON file, so sounds survive cleared browser data and can move between devices.
-  - Prompt about unsaved changes before loading another sound or leaving Free Play.
+  - **Export / import** the whole library or a single sound as a JSON file, so sounds survive cleared browser data and can move between devices. Imports always become new user sounds; ones already in the library (same name and settings) are skipped.
+  - Prompt about unsaved changes before loading another sound, starting a new one, or leaving Free Play.
+  - If stored library data can't be read, keep a copy of it under a separate key rather than overwriting it.
 
 ## 11. Daily challenge
 

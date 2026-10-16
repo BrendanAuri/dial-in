@@ -4,6 +4,7 @@ import { PARAMS, PARAM_IDS, type Patch } from './params';
 import {
   DEFAULT_PATCH,
   deserialisePatch,
+  patchesEqual,
   patchFromJson,
   patchToJson,
   serialisePatch,
@@ -75,6 +76,14 @@ describe('serialisation', () => {
     expect(deserialisePatch({ params: {} })).toBeNull();
     expect(deserialisePatch({ v: 1, params: [] })).toBeNull();
     expect(patchFromJson('{not json')).toBeNull();
+  });
+});
+
+describe('patchesEqual', () => {
+  it('compares every parameter', () => {
+    expect(patchesEqual(SAMPLE, { ...SAMPLE })).toBe(true);
+    expect(patchesEqual(SAMPLE, { ...SAMPLE, 'lfo.rate': 4.6 })).toBe(false);
+    expect(patchesEqual(DEFAULT_PATCH, { ...DEFAULT_PATCH, 'osc.wave': 'sine' })).toBe(false);
   });
 });
 

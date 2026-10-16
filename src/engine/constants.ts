@@ -13,13 +13,65 @@ export const CENTS_PER_SEMITONE = 100;
 export const CENTS_PER_OCTAVE = 1200;
 
 // ── Notes and timing ─────────────────────────────────────────────────────
-/** How long a round's note is held before release, in seconds. */
+/** How long a round's note (and Free Play's short Play) is held before release, in seconds. */
 export const DEFAULT_HOLD_TIME = 1.5;
 export const DEFAULT_NOTE = 'C3';
-/** Lowest and highest notes offered by the test page's note picker. */
-export const NOTE_PICKER_RANGE = ['C1', 'C6'] as const;
 /** Live notes are scheduled this far ahead of currentTime, in seconds. */
 export const LIVE_START_DELAY = 0.01;
+
+// ── Free Play ────────────────────────────────────────────────────────────
+/** Most voices sounding at once; the oldest is stolen beyond this. */
+export const MAX_VOICES = 8;
+/** Octave of the keyboard's lowest C when Free Play first opens. */
+export const DEFAULT_KEYBOARD_OCTAVE = 3;
+export const KEYBOARD_OCTAVE_RANGE = [0, 6] as const;
+/** Viewport width (CSS px) from which the on-screen keyboard shows two octaves instead of one. */
+export const KEYBOARD_TWO_OCTAVE_MIN_WIDTH = 640;
+/** Undo steps kept. */
+export const UNDO_LIMIT = 100;
+/** Changes to the same control closer together than this become one undo step, in ms. */
+export const UNDO_COALESCE_MS = 600;
+/** Delay before the working sound is written to storage after a change, in ms. */
+export const SESSION_SAVE_DELAY_MS = 300;
+/** How long status messages stay on screen, in ms. */
+export const TOAST_MS = 2500;
+
+// ── Sound library ────────────────────────────────────────────────────────
+export const LIBRARY_SCHEMA_VERSION = 1;
+export const SESSION_SCHEMA_VERSION = 1;
+export const SOUND_NAME_MAX_LENGTH = 60;
+export const SOUND_TAG_MAX_LENGTH = 24;
+export const SOUND_MAX_TAGS = 8;
+/** Suggest a backup export after this many saves since the last one. */
+export const BACKUP_NUDGE_SAVES = 10;
+
+// ── Randomise ────────────────────────────────────────────────────────────
+/**
+ * Musical ranges for Free Play's Randomise button. A stand-in until the
+ * Foundations pack's sound-type templates exist (Milestone 6).
+ * Pairs are [min, max]; chances are probabilities.
+ */
+export const RANDOMISE = {
+  octaveWeights: [0.25, 0.5, 0.25],
+  detuneChance: 0.5,
+  detune: [3, 30],
+  noiseChance: 0.3,
+  noise: [0.05, 0.4],
+  cutoff: [150, 8000],
+  resonance: [0, 0.7],
+  filterEnvChance: 0.5,
+  filterEnvAmount: [0.5, 4],
+  filterEnvDecay: [0.05, 1],
+  fastAttackChance: 0.7,
+  fastAttack: [0.001, 0.05],
+  slowAttack: [0.05, 1.5],
+  decay: [0.05, 1.5],
+  sustain: [0, 1],
+  release: [0.02, 1.5],
+  lfoChance: 0.4,
+  lfoRate: [0.3, 10],
+  lfoDepth: [0.1, 0.7],
+} as const;
 
 // ── Envelopes ────────────────────────────────────────────────────────────
 /**

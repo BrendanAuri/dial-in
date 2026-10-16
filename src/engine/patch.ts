@@ -69,6 +69,10 @@ export function setParam(patch: Readonly<Patch>, id: ParamId, value: unknown): P
   return patchFromRecord({ [id]: value }, patch);
 }
 
+export function patchesEqual(a: Readonly<Patch>, b: Readonly<Patch>): boolean {
+  return PARAM_IDS.every((id) => a[id] === b[id]);
+}
+
 export function serialisePatch(patch: Readonly<Patch>): SerialisedPatch {
   return {
     v: PATCH_FORMAT_VERSION,

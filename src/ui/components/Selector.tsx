@@ -1,19 +1,21 @@
 import { useId } from 'react';
-import type { DiscreteOption, DiscreteValue } from '../../engine/params';
+import type { DiscreteOption } from '../../engine/params';
 
-interface SelectorProps<V extends DiscreteValue> {
+interface SelectorProps<V extends string | number> {
   readonly label: string;
   readonly options: readonly DiscreteOption<V>[];
   readonly value: V;
   readonly onChange: (value: V) => void;
+  /** Keep the label for screen readers but don't show it. */
+  readonly hideLabel?: boolean;
 }
 
-/** Segmented control for a discrete parameter. */
-export function Selector<V extends DiscreteValue>({ label, options, value, onChange }: SelectorProps<V>) {
+/** Segmented control for a choice between a few options. */
+export function Selector<V extends string | number>({ label, options, value, onChange, hideLabel }: SelectorProps<V>) {
   const labelId = useId();
   return (
-    <div className="selector">
-      <div className="selector-label" id={labelId}>
+    <div className={hideLabel ? 'selector compact' : 'selector'}>
+      <div className={hideLabel ? 'visually-hidden' : 'selector-label'} id={labelId}>
         {label}
       </div>
       <div className="selector-options" role="radiogroup" aria-labelledby={labelId}>
