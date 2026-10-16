@@ -586,6 +586,65 @@ select {
   color: var(--danger);
 }
 
+/* ── Calibration (dev page) ────────────────────────────────────────────── */
+
+.calibration-title {
+  margin: 0;
+  font-size: 1.3rem;
+}
+
+.calibration .top-bar {
+  justify-content: space-between;
+  padding-top: calc(16px + env(safe-area-inset-top));
+}
+
+.calibration-constants {
+  overflow-x: auto;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  font-size: 0.8rem;
+}
+
+.calibration-table {
+  width: 100%;
+  margin: 12px 0 20px;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.calibration-table th,
+.calibration-table td {
+  padding: 6px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.calibration-table .kind-identical td:first-child {
+  border-left: 3px solid var(--accent);
+}
+
+.calibration-table .kind-slight td:first-child {
+  border-left: 3px solid #ffd166;
+}
+
+.calibration-table .kind-large td:first-child {
+  border-left: 3px solid var(--danger);
+}
+
+.calibration-play {
+  display: flex;
+  gap: 4px;
+}
+
+.calibration-play .button {
+  min-height: 32px;
+  padding: 0 10px;
+}
+
 /* ── Keyboard ──────────────────────────────────────────────────────────── */
 
 .keyboard {

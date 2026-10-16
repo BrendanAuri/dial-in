@@ -113,6 +113,43 @@ export const HINT_COST = 10;
 /** An attack shorter than this is described as instant, in seconds. */
 export const INSTANT_ATTACK = 0.01;
 
+// ── Audio score ──────────────────────────────────────────────────────────
+export const RENDER_SAMPLE_RATE = 44100;
+/** Extra silence rendered after the release, in seconds. */
+export const RENDER_TAIL = 0.05;
+/** Analysis frame length and step, in samples. */
+export const FEATURE_BUFFER_SIZE = 2048;
+export const FEATURE_HOP_SIZE = 512;
+export const MFCC_COEFFICIENTS = 13;
+/** Both renders are scaled to this overall RMS before comparing, so volume never biases the score. */
+export const RMS_MATCH_LEVEL = 0.1;
+/**
+ * Frame levels are floored here, in dBFS; frames where both sides are this
+ * quiet are skipped, so near-silent release tails don't dominate.
+ */
+export const LOUDNESS_FLOOR_DB = -45;
+/** Brightness and timbre are compared only in frames where both sides are louder than this, in dBFS. */
+export const SPECTRUM_GATE_DB = -45;
+/** Centroids are floored here, in Hz, to keep the octave maths finite. */
+export const MIN_CENTROID_HZ = 20;
+/**
+ * Raw distance → 0–100 for each part of the audio score: full marks up to
+ * `perfect`, falling linearly to zero at `zero`. Tune with the calibration
+ * page (open the app with #calibrate). First calibration, 2026-10-17: identical
+ * pairs 100, slight changes mean 90, large changes mean 62 and max 91 (so no
+ * large change reaches AUDIO_MATCH_SCORE).
+ */
+export const AUDIO_CALIBRATION = {
+  loudnessDb: { perfect: 0.3, zero: 6 },
+  brightnessOctaves: { perfect: 0.03, zero: 0.8 },
+  timbre: { perfect: 2, zero: 45 },
+} as const;
+/** Share of the final score that comes from the audio score. */
+export const AUDIO_SCORE_WEIGHT = 0.3;
+/** An audio score at or above this lifts the final score to at least AUDIO_MATCH_FLOOR. */
+export const AUDIO_MATCH_SCORE = 95;
+export const AUDIO_MATCH_FLOOR = 90;
+
 // ── Audibility (what can't be heard in the target isn't scored) ──────────
 /** Resonance can't be heard with the cutoff at or above this, in Hz. */
 export const RESONANCE_AUDIBLE_MAX_CUTOFF = 12000;

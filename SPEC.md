@@ -34,7 +34,7 @@ Inspired by Syntorial. The core content is genre-neutral: it teaches synthesis f
 - **TypeScript** (strict) + **Vite** + **React**
 - **Web Audio API** directly for the synth (no Tone.js), so the engine stays small and fully under our control
 - **OfflineAudioContext** to render target and attempt to buffers for audio-based scoring
-- **Meyda** for audio feature extraction (RMS, spectral centroid, MFCC)
+- Audio feature extraction (RMS, spectral centroid, MFCC) written in-house in `scoring/audioFeatures.ts`, following **Meyda**'s definitions. Meyda itself is a dev dependency only: the tests check our numbers against it. Ours is about 5× faster (6 ms against 30 ms per render in Node), which matters on phones, and keeps Meyda out of the bundle.
 - **vite-plugin-pwa** for manifest, service worker and offline caching
 - **Vitest** for unit tests
 - **localStorage** for progress and the sound library, behind a small storage interface so it can move to IndexedDB if needed
@@ -251,10 +251,14 @@ Render both patches with `renderPatch` (same note, same length, 44.1 kHz, RMS-ma
 - brightness: mean absolute centroid difference in octaves
 - timbre: mean Euclidean MFCC distance
 
-Map each to 0–100 with calibration constants and average them. Build a hidden **dev calibration page** that renders pairs (identical, slightly off, very off) and prints the raw distances, so the constants can be tuned by ear.
+Frames where both sides are quieter than −45 dBFS (after RMS matching) are skipped, so near-silent tails don't dominate. Loudness and timbre use frames where either side makes sound (sound against silence counts as very different); brightness uses frames where both do.
+
+Map each to 0–100 with calibration constants (`AUDIO_CALIBRATION`: full marks up to `perfect`, zero from `zero`) and average them. The hidden **dev calibration page** (open the app with `#calibrate`) renders pairs (identical, slightly off, very off), prints the raw distances and part scores with a summary per group, and plays A and B, so the constants can be tuned by ear. First calibration: identical 100, slight changes mean 90, large changes mean 62 with none reaching 95.
+
+Known limitation: the comparison lines frames up in time, so differences in modulation rate (detune beating, LFO rate) can score lower than they sound, e.g. +4 cents on an already detuned pad.
 
 ### 8.4 Final score
-`final = round(0.7 × paramScore + 0.3 × audioScore)`, except if `audioScore ≥ 95` then `final = max(final, 90)`, so different settings that sound the same still pass. Hints then take 10 points each off the rounded score (never below 0). Default pass mark 80 (packs can override per level). Stars at 80 / 90 / 97. Until audio scoring exists (Milestone 5), `final` is the parameter score alone.
+`final = round(0.7 × paramScore + 0.3 × audioScore)`, except if `audioScore ≥ 95` then `final = max(final, 90)`, so different settings that sound the same still pass. Hints then take 10 points each off the rounded score (never below 0). Default pass mark 80 (packs can override per level). Stars at 80 / 90 / 97. If the audio can't be rendered, `final` is the parameter score alone. The result card shows both parts ("Settings 84 · Sound 91") and says when sounding the same lifted the score.
 
 ### 8.5 Feedback
 For each audible parameter with `c < 0.8`, generate one tip that gives direction and size in musician's language, explains what you'd hear, and ties it to the spectrum where helpful:
@@ -358,6 +362,7 @@ Build in order. Each milestone ends with the app running, `npm run test` and `np
 - Daily tiers before you've passed level 3: offer a beginner tier from level 1 so new players get a daily from day one?
 - Distribution: will packs always ship inside the app, or might they be downloaded or sold separately one day? v1 compiles them in; keeping them JSON-serialisable leaves both options open.
 - Audience: still a personal tool, or heading for a public release? That decides how much onboarding, accessibility and sharing polish v1 needs.
+- Audio score and modulation: add a phase-insensitive measure (e.g. compare the spread of loudness rather than frame by frame) so detune and LFO-rate differences aren't over-penalised? Matters more once the Bass Music pack leans on reese and wobble sounds.
 
 ## 17. Idea backlog (proposed, not committed)
 

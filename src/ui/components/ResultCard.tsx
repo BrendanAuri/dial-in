@@ -1,5 +1,5 @@
 import { Fragment } from 'react';
-import { RESULT_TIPS, STAR_SCORES, TIP_CLOSENESS } from '../../engine/constants';
+import { AUDIO_MATCH_FLOOR, RESULT_TIPS, STAR_SCORES, TIP_CLOSENESS } from '../../engine/constants';
 import { controlName, type Patch } from '../../engine/params';
 import type { RoundResult } from '../../scoring/scoreRound';
 import { formatParam } from '../format';
@@ -50,6 +50,13 @@ export function ResultCard({ result, target, best, passMark, changed, onRetry, o
           <div className={score.passed ? 'result-verdict pass' : 'result-verdict'}>
             {score.passed ? 'Passed' : `Not yet: ${passMark} to pass`}
           </div>
+          <div className="result-detail">
+            Settings {Math.round(score.paramScore)}
+            {score.audioScore === null ? ' · sound check unavailable' : ` · Sound ${Math.round(score.audioScore)}`}
+          </div>
+          {score.liftedBySound && (
+            <div className="result-detail">Sounds the same as the target, so it counts as at least {AUDIO_MATCH_FLOOR}</div>
+          )}
           {score.hintPenalty > 0 && <div className="result-detail">Includes −{score.hintPenalty} for hints</div>}
           {best > score.score && <div className="result-detail">Best on this round: {best}</div>}
         </div>

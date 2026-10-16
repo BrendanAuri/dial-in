@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { startAudio, type LiveAudio } from './ui/audio';
+import { Calibration } from './ui/screens/Calibration';
 import { FreePlay } from './ui/screens/FreePlay';
 import { RoundScreen } from './ui/screens/RoundScreen';
 import { Start } from './ui/screens/Start';
@@ -11,7 +12,14 @@ const SCREENS: readonly { readonly id: Screen; readonly label: string }[] = [
   { id: 'freeplay', label: 'Free Play' },
 ];
 
+/** The hidden dev calibration page is opened with #calibrate. */
+const CALIBRATION_HASH = '#calibrate';
+
 export function App() {
+  return window.location.hash === CALIBRATION_HASH ? <Calibration /> : <MainApp />;
+}
+
+function MainApp() {
   const [audio, setAudio] = useState<LiveAudio | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [screen, setScreen] = useState<Screen>('rounds');

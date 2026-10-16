@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { PACKS } from '../../content';
 import type { Level, Pack } from '../../content/schema';
 import { ComparePlayer } from '../../engine/comparePlayer';
@@ -6,6 +6,7 @@ import { DEFAULT_HOLD_TIME, HINT_COST, LIVE_START_DELAY, PASS_MARK } from '../..
 import { midiToNoteName } from '../../engine/notes';
 import { PARAM_IDS, type ParamId, type Patch } from '../../engine/params';
 import { patchesEqual, setParam } from '../../engine/patch';
+import { measureAudio } from '../../game/measureAudio';
 import { findLevel, getPack, packLevels } from '../../game/packs';
 import { formatReplayCode, parseReplayCode } from '../../game/replayCode';
 import { randomSeed } from '../../game/rng';
@@ -76,6 +77,8 @@ function Round({ audio, first }: RoundScreenProps & { readonly first: LevelRef }
   const playback = useSyncExternalStore(player.subscribe, player.getState);
   const [codeDialogOpen, setCodeDialogOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [scoring, setScoring] = useState(false);
+  const submitToken = useRef(0);
 
   const { ref, round, mine, result } = state;
   const passMark = ref.level.passMark ?? PASS_MARK;
@@ -123,19 +126,30 @@ function Round({ audio, first }: RoundScreenProps & { readonly first: LevelRef }
     if (!player.flip(time)) player.playAB(patches, round.note, time, DEFAULT_HOLD_TIME);
   }, [player, patches, round, eventTime]);
 
+  /** Render both sounds offline, compare them, then score. Ignored if the round moved on meanwhile. */
   const submit = useCallback(() => {
-    setState((s) => {
-      const scored = scoreRound({
-        target: s.round.target,
-        mine: s.mine,
-        unlocked: s.round.unlocked,
-        context: listening(s.round),
-        hintsUsed: s.hintsUsed,
-        passMark: s.ref.level.passMark ?? PASS_MARK,
+    if (scoring) return;
+    const submitted = state;
+    const token = ++submitToken.current;
+    setScoring(true);
+    void measureAudio(submitted.round.target, submitted.mine, submitted.round.note, DEFAULT_HOLD_TIME).then((audio) => {
+      if (submitToken.current !== token) return;
+      setScoring(false);
+      setState((s) => {
+        if (s.round !== submitted.round) return s;
+        const scored = scoreRound({
+          target: s.round.target,
+          mine: submitted.mine,
+          unlocked: s.round.unlocked,
+          context: listening(s.round),
+          audio,
+          hintsUsed: s.hintsUsed,
+          passMark: s.ref.level.passMark ?? PASS_MARK,
+        });
+        return { ...s, result: scored, best: Math.max(s.best ?? 0, scored.score.score), hint: null };
       });
-      return { ...s, result: scored, best: Math.max(s.best ?? 0, scored.score.score), hint: null };
     });
-  }, []);
+  }, [scoring, state]);
 
   const hint = useCallback(() => {
     setState((s) => {
@@ -145,7 +159,11 @@ function Round({ audio, first }: RoundScreenProps & { readonly first: LevelRef }
   }, []);
 
   const retry = useCallback(() => setState((s) => ({ ...s, result: null })), []);
-  const next = useCallback(() => setState((s) => newRound(s.ref, randomSeed(), s.number + 1)), []);
+  const next = useCallback(() => {
+    submitToken.current++;
+    setScoring(false);
+    setState((s) => newRound(s.ref, randomSeed(), s.number + 1));
+  }, []);
   const resetKnobs = useCallback(() => setState((s) => ({ ...s, mine: { ...s.round.start } })), []);
 
   const onParamChange = useCallback(
@@ -299,8 +317,14 @@ function Round({ audio, first }: RoundScreenProps & { readonly first: LevelRef }
           A/B
           {playback.playing === 'ab' && <span className="ab-hearing">{hearingLabel}</span>}
         </button>
-        <button type="button" className="button submit-button" onClick={showNext ? next : submit}>
-          {showNext ? 'Next' : 'Submit'}
+        <button
+          type="button"
+          className="button submit-button"
+          onClick={showNext ? next : submit}
+          disabled={scoring}
+          aria-busy={scoring}
+        >
+          {scoring ? 'Scoring…' : showNext ? 'Next' : 'Submit'}
         </button>
       </div>
 
