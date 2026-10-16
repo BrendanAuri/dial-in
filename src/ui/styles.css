@@ -1,0 +1,311 @@
+:root {
+  color-scheme: dark;
+  --bg: #111318;
+  --surface: #1a1d24;
+  --surface-raised: #232731;
+  --border: #2e3340;
+  --text: #e8eaf0;
+  --text-muted: #9aa1b2;
+  --accent: #4fd1c5;
+  --accent-strong: #2fb3a7;
+  --accent-text: #0b1a19;
+  --danger: #ff7a7a;
+  --radius: 12px;
+  --touch: 44px;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.4;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-text-size-adjust: 100%;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--bg);
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ── Buttons ───────────────────────────────────────────────────────────── */
+
+.button {
+  min-height: var(--touch);
+  padding: 0 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.button:hover {
+  border-color: var(--text-muted);
+}
+
+.button.primary {
+  border-color: transparent;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.button.primary:hover {
+  background: var(--accent-strong);
+}
+
+/* ── Start screen ──────────────────────────────────────────────────────── */
+
+.start {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 100dvh;
+  padding: 24px 16px;
+  text-align: center;
+}
+
+.start-title {
+  margin: 0;
+  font-size: 2.75rem;
+  letter-spacing: -0.02em;
+}
+
+.start-tagline {
+  margin: 0 0 16px;
+  color: var(--text-muted);
+}
+
+.start-button {
+  min-width: 220px;
+  min-height: 56px;
+  font-size: 1.15rem;
+}
+
+.start-error {
+  color: var(--danger);
+}
+
+.start-tips {
+  max-width: 320px;
+  margin: 24px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.start-tips li + li {
+  margin-top: 8px;
+}
+
+/* ── Free Play ─────────────────────────────────────────────────────────── */
+
+.free-play {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 16px calc(24px + env(safe-area-inset-bottom));
+}
+
+.top-bar {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: calc(16px + env(safe-area-inset-top)) 0 8px;
+}
+
+.top-bar-title {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.top-bar-subtitle {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.transport {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  background: var(--bg);
+}
+
+.play {
+  min-width: 120px;
+}
+
+.play.playing {
+  box-shadow: 0 0 0 3px rgb(79 209 197 / 35%);
+}
+
+.note-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+}
+
+.note-picker select {
+  min-height: var(--touch);
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+}
+
+.modules {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.module {
+  padding: 12px 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.module-title {
+  margin: 0 0 10px;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.module-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 6px;
+}
+
+.hint {
+  margin-top: 20px;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+/* ── Knob ──────────────────────────────────────────────────────────────── */
+
+.knob {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 72px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.knob-dial {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  cursor: ns-resize;
+  touch-action: none;
+}
+
+.knob-dial svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.knob-track,
+.knob-value {
+  fill: none;
+  stroke-width: 9;
+  stroke-linecap: round;
+}
+
+.knob-track {
+  stroke: var(--surface-raised);
+}
+
+.knob-value {
+  stroke: var(--accent);
+}
+
+.knob-pointer {
+  stroke: var(--text);
+  stroke-width: 6;
+  stroke-linecap: round;
+}
+
+.knob-label {
+  margin-top: 2px;
+  font-size: 0.85rem;
+}
+
+.knob-readout {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ── Selector ──────────────────────────────────────────────────────────── */
+
+.selector {
+  flex: 1 1 100%;
+}
+
+.selector-label {
+  margin-bottom: 6px;
+  font-size: 0.85rem;
+}
+
+.selector-options {
+  display: flex;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.selector-option {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: var(--touch);
+  padding: 0 6px;
+  border: none;
+  background: var(--surface-raised);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.selector-option + .selector-option {
+  border-left: 1px solid var(--border);
+}
+
+.selector-option.selected {
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+}
