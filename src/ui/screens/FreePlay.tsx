@@ -50,7 +50,7 @@ import { dateStamp, downloadText, fileSlug } from '../files';
 import { canRedo, canUndo, commit, createHistory, redo, undo, type History } from '../history';
 import { isButtonLike, isTypingTarget, useMediaQuery } from '../hooks';
 import { noteForKey, OCTAVE_DOWN_KEY, OCTAVE_UP_KEY } from '../keyboardMap';
-import { loadSession, saveSession } from '../session';
+import { loadSession, saveSession, type FreePlaySession } from '../session';
 
 const HISTORY_OPTIONS = { limit: UNDO_LIMIT, coalesceMs: UNDO_COALESCE_MS };
 const STORAGE_FAILED = "Couldn't save to this browser's storage. Export your sounds to keep them safe.";
@@ -133,19 +133,28 @@ export function FreePlay({ audio }: FreePlayProps) {
 
   useEffect(() => () => manager.panic(audio.ctx.currentTime), [manager, audio]);
 
+  // Keep the working sound across reloads: debounced while editing, and at once when leaving Free Play.
+  const sessionRef = useRef<FreePlaySession | null>(null);
   useEffect(() => {
-    const timer = setTimeout(() => {
-      saveSession(store, {
-        patch,
-        soundId: current.id,
-        soundName: current.name,
-        baseline: { ...current.baseline },
-        mode,
-        octave,
-      });
-    }, SESSION_SAVE_DELAY_MS);
+    const snapshot: FreePlaySession = {
+      patch,
+      soundId: current.id,
+      soundName: current.name,
+      baseline: { ...current.baseline },
+      mode,
+      octave,
+    };
+    sessionRef.current = snapshot;
+    const timer = setTimeout(() => saveSession(store, snapshot), SESSION_SAVE_DELAY_MS);
     return () => clearTimeout(timer);
   }, [store, patch, current, mode, octave]);
+
+  useEffect(
+    () => () => {
+      if (sessionRef.current) saveSession(store, sessionRef.current);
+    },
+    [store],
+  );
 
   const showToast = useCallback((text: string) => setToast({ id: Date.now(), text }), []);
 
@@ -465,9 +474,9 @@ export function FreePlay({ audio }: FreePlayProps) {
   const editing = dialog?.kind === 'edit' ? findSound(library, dialog.id) : undefined;
 
   return (
-    <div className="free-play">
+    <div className="screen free-play">
       <header className="top-bar">
-        <h1 className="top-bar-title">Dial In</h1>
+        <h1 className="visually-hidden">Free Play</h1>
         <div className="sound-title">
           <span className="sound-title-name">{current.name}</span>
           {dirty && (

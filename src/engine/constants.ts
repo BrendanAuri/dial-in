@@ -36,6 +36,26 @@ export const SESSION_SAVE_DELAY_MS = 300;
 /** How long status messages stay on screen, in ms. */
 export const TOAST_MS = 2500;
 
+// ── Rounds ───────────────────────────────────────────────────────────────
+/** Time constant of the A/B crossfade when switching between target and yours, in seconds. */
+export const AB_CROSSFADE_TIME = 0.008;
+/** Candidates tried before the generator settles for the last one. */
+export const TARGET_MAX_ATTEMPTS = 50;
+/** Reject targets whose loudest moment is quieter than this, in dB. */
+export const TARGET_MIN_PEAK_DB = -24;
+/** A target must stay above TARGET_AUDIBLE_LEVEL (linear) for at least this long, in seconds. */
+export const TARGET_MIN_AUDIBLE_SECONDS = 0.08;
+export const TARGET_AUDIBLE_LEVEL = 0.1;
+/**
+ * At least one of the level's new controls must sit this far (as a 0–1
+ * knob position) from where the knobs start, so Submit alone can't win.
+ */
+export const TARGET_MIN_START_DISTANCE = 0.2;
+/** Rough lowpass slope used when estimating loudness, in dB per octave. */
+export const FILTER_SLOPE_DB_PER_OCTAVE = 12;
+/** Time step for the loudness estimate, in seconds. */
+export const LOUDNESS_STEP_SECONDS = 0.005;
+
 // ── Sound library ────────────────────────────────────────────────────────
 export const LIBRARY_SCHEMA_VERSION = 1;
 export const SESSION_SCHEMA_VERSION = 1;

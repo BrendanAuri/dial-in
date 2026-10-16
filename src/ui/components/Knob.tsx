@@ -21,6 +21,8 @@ interface KnobProps {
   readonly def: ContinuousParamDef;
   readonly value: number;
   readonly onChange: (value: number) => void;
+  /** Locked: shown greyed out and can't be changed. */
+  readonly disabled?: boolean;
 }
 
 /** Point on the knob circle; 0° is straight up, positive is clockwise. */
@@ -40,7 +42,7 @@ function arcPath(fromDegrees: number, toDegrees: number): string {
  * Rotary control. Drag vertically (Shift for fine), double-tap to reset,
  * arrow keys / Page Up / Page Down / Home / End when focused.
  */
-export function Knob({ def, value, onChange }: KnobProps) {
+export function Knob({ def, value, onChange, disabled = false }: KnobProps) {
   const position = toNormalised(def, value);
   const drag = useRef<{ lastY: number; position: number } | null>(null);
   const lastTap = useRef(-Infinity);
@@ -99,22 +101,23 @@ export function Knob({ def, value, onChange }: KnobProps) {
   const inner = polar(POINTER_INNER, angle);
   const text = formatValue(def, value);
 
+  const handlers = disabled
+    ? {}
+    : { onPointerDown, onPointerMove, onPointerUp: endDrag, onPointerCancel: endDrag, onKeyDown };
+
   return (
-    <div className="knob">
+    <div className={disabled ? 'knob disabled' : 'knob'}>
       <div
         className="knob-dial"
         role="slider"
-        tabIndex={0}
+        tabIndex={disabled ? -1 : 0}
         aria-label={def.label}
+        aria-disabled={disabled || undefined}
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={Math.round(position * 100)}
         aria-valuetext={text}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={endDrag}
-        onPointerCancel={endDrag}
-        onKeyDown={onKeyDown}
+        {...handlers}
       >
         <svg viewBox={`0 0 ${VIEWBOX} ${VIEWBOX}`} aria-hidden="true">
           <path className="knob-track" d={arcPath(start, -start)} />

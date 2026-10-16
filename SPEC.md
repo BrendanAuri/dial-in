@@ -129,8 +129,8 @@ Implementation notes:
 
 ## 6. Round flow
 
-1. Generate a target patch from the level's generator spec, using only the level's unlocked controls; locked controls use the level's fixed values and are shown greyed out.
-2. Player can **Play target**, **Play mine**, and toggle **A/B** (same note, same length). Knob changes are audible on the next play.
+1. Generate a target patch from the level's generator spec, using only the level's unlocked controls; locked controls use the level's fixed values and are shown greyed out (a module with every control locked shows only its title).
+2. Player can **Play target**, **Play mine**, and **A/B** (same note, same length). A/B plays both in sync starting on the target; pressing it again while it plays flips between them with a short crossfade. Knob changes are heard straight away on your sounding note.
 3. **Submit** → score, top three feedback tips, and a reveal table (target vs mine for every unlocked control) with both spectra overlaid.
 4. **Retry** the same target (best score kept) or **Next**.
 5. **Hint** (optional): costs 10 points; names the control that's furthest off and which direction to move it, without the value.
@@ -284,7 +284,7 @@ The synth as an instrument: no targets, no scores.
   - Each saved sound: `{ id, name, tags, favourite, createdAt, updatedAt, source, patch }`, where `source` is `user` or `preset:<packId>`.
   - Factory presets from packs are read-only; saving an edited preset creates a user copy.
   - **Export / import** the whole library or a single sound as a JSON file, so sounds survive cleared browser data and can move between devices. Imports always become new user sounds; ones already in the library (same name and settings) are skipped.
-  - Prompt about unsaved changes before loading another sound, starting a new one, or leaving Free Play.
+  - Prompt about unsaved changes before loading another sound or starting a new one. Leaving Free Play needs no prompt: the working sound is kept (see Session).
   - If stored library data can't be read, keep a copy of it under a separate key rather than overwriting it.
 
 ## 11. Daily challenge
@@ -308,7 +308,7 @@ One new target per tier per day, identical for every player, with no backend.
 - **Home**: today's daily challenge and streak, continue where you left off, packs with progress, Practice, Free Play, and "your weakest controls".
 - **Knobs**: vertical drag, fine adjust with a modifier or two-finger drag, double-tap to reset, tap value to type a number; units shown (Hz, s, %, cents).
 - **Spectrum**: live `AnalyserNode` view while playing; on the result screen, overlay target vs mine.
-- Desktop shortcuts in rounds: Space = play target, M = play mine, Tab = A/B, Enter = submit. Free Play keyboard mapping in §10.
+- Desktop shortcuts in rounds: Space = play target, M = play mine, B = A/B, Enter = submit (then next round). Tab is left for keyboard navigation. Free Play keyboard mapping in §10.
 
 ## 13. Persistence
 
