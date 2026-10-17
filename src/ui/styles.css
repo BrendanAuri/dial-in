@@ -1476,9 +1476,10 @@ select {
   stroke: var(--accent);
 }
 
+/* A little wider than the arc, so the pointer's rounded end covers the arc's end. */
 .knob-pointer {
   stroke: var(--text);
-  stroke-width: 6;
+  stroke-width: 10;
   stroke-linecap: round;
 }
 

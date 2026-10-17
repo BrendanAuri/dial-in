@@ -23,7 +23,8 @@ const VALUE_END = 60;
 const POINTER_INNER = 0.08;
 // Reaches the ring's centre line, so the pointer meets the end of the teal arc.
 const POINTER_OUTER = RADIUS;
-const POINTER_THICKNESS = 0.065;
+// A little wider than the ring, so the pointer's rounded end covers the arc's end completely.
+const POINTER_THICKNESS = 0.092;
 const CORNER = 0.22;
 /** Maskable icons keep content inside the central 80 %. */
 const MASKABLE_SCALE = 0.8;
