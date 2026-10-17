@@ -11,6 +11,7 @@ function sample(): Progress {
   const ref = { pack: FIXTURE_PACK, level };
   let p = recordRound(EMPTY_PROGRESS, [{ id: 'filter.cutoff', closeness: 0.6, weight: 2, inaudible: null }]);
   p = finishRun(startRun(p, ref, 7), ref, [90, 80, 85, 95, 70]);
+  p = { ...p, dailies: { '2026-10-17/fixture/easy': { best: 77, submits: 2, finished: false, onTime: true } } };
   return startRun(p, ref, 99);
 }
 
@@ -39,6 +40,7 @@ describe('progress storage', () => {
         roundsPlayed: -3,
         lastLevel: 7,
         run: { level: 'fixture/wave', packVersion: 3, scores: [50, 'x'], seed: 1 },
+        dailies: { '2026-10-17/fixture/easy': { best: 90, submits: 1, finished: true, onTime: false }, bad: { best: 500 } },
       }),
     });
     expect(loadProgress(store, 0).progress).toEqual({
@@ -47,6 +49,7 @@ describe('progress storage', () => {
       roundsPlayed: 0,
       lastLevel: null,
       run: null,
+      dailies: { '2026-10-17/fixture/easy': { best: 90, submits: 1, finished: true, onTime: false } },
     });
   });
 });

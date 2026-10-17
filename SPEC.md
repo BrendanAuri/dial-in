@@ -201,7 +201,7 @@ interface GeneratorTemplate {
 }
 ```
 
-`presets` and `daily` are added to the schema when they're first used (Milestone 10 and Milestone 7).
+`daily` (`DailyTier[]`: id, title, levelId) lists the pack's daily tiers (§11). `presets` is added to the schema when first used (Milestone 10).
 
 Rules:
 - A level's unlocked controls are the pack's `baseControls` plus the `newControls` of that level and every earlier level in the pack.
@@ -318,12 +318,13 @@ The synth as an instrument: no targets, no scores.
 One new target per tier per day, identical for every player, with no backend.
 
 - **Tiers** come from pack data (`Pack.daily`, §7.1), so packs can add their own daily tiers later. A tier is available once you've passed its level; Foundations offers Basics, Shapes and Full (§7.2).
-- **Seed**: derived from the player's local date (`YYYY-MM-DD`), pack id and tier id, so everyone gets the same target on the same day and it rolls over at local midnight. The **daily number** is days since `DAILY_EPOCH` (a constant), e.g. "Daily #142".
-- **Attempts**: listen as often as you like; up to `DAILY_SUBMITS` submits (starting at 3), best one counts. No hints. The reveal table only appears once you've used all submits or scored 97+, so retries stay honest.
-- **Streak**: consecutive days with at least one daily tier completed. Show current and best streak on Home.
-- **Share**: a spoiler-free text summary copied to the clipboard or sent with the Web Share API, e.g. `Dial In daily #142 · Full · 94 ★★ · 2/3`. No patch values in it.
-- **Archive**: past dailies can be replayed from a calendar (they're deterministic), but they don't count towards streaks.
-- Daily rounds update the per-parameter stats (§13).
+- **Seed**: a 32-bit FNV-1a hash of `YYYY-MM-DD/packId/tierId`, using the player's local date, so everyone gets the same target on the same day and it rolls over at local midnight. The **daily number** counts from `DAILY_EPOCH` (2026-10-01 is Daily #1), e.g. "Daily #142".
+- **Attempts**: listen as often as you like; up to `DAILY_SUBMITS` submits (starting at 3), best one counts. No hints. Score and tips show after each submit, but the reveal table and the sound type only appear once you've used all submits, scored `DAILY_FINISH_SCORE` (97) or more, or pressed **Reveal answer**, so retries stay honest. Submit stays disabled until the sound changes, so a submit can't be wasted by accident. Submits used and the best score are saved after each submit, so a reload continues the daily.
+- **Streak**: consecutive days with at least one daily tier submitted **on its own date**. Whether a daily counts is fixed when it's first saved, so finishing it after midnight still counts for its date. Today not played yet doesn't break the streak until the day is over. Worked out from the saved daily results rather than stored separately. Current and best streak show on Home and on the daily screen.
+- **Share**: a spoiler-free text summary sent with the Web Share API where there is one, else copied to the clipboard (and selectable if copying is blocked), e.g. `Dial In daily #142 · Full · 94 ★★ · 2/3`. No patch values in it.
+- **Archive**: a month calendar from `DAILY_EPOCH` to today, marking days played on the day (●) and played later (○). Past dailies play with the same rules and are saved, but don't count towards streaks.
+- **Finished dailies**: reopening a finished tier shows its score, the share text and **Play it again (not scored)**, which replays the same round with normal rules (hints, answer shown).
+- Daily rounds update the per-parameter stats (§13) from the first submit.
 - Changing a tier's level or generator changes that tier's daily for every date, including past ones. That's acceptable without a backend, but avoid it once dailies are live.
 - Reminder notifications wait for Capacitor builds (web push needs a server).
 
@@ -331,8 +332,8 @@ One new target per tier per day, identical for every player, with no backend.
 
 - Portrait-first, dark theme, large touch targets.
 - **Start screen** with a "Tap to start" button that resumes the AudioContext (mobile browsers require a user gesture). Show a tip that the phone's silent switch can mute audio, and recommend headphones: phone speakers can't reproduce low bass notes.
-- **Navigation**: tabs for Home, Practice and Free Play. Screens are hash routes (`#/`, `#/pack/<pack>`, `#/play/<pack>/<level>`, `#/practice[/<pack>/<level>]`, `#/free-play`), so the back button and reloads keep your place.
-- **Home**: today's daily challenge and streak (Milestone 7), continue where you left off (a level run in progress, else the next unpassed level), packs with progress and stars, and "your weakest controls" with a Practise button each.
+- **Navigation**: tabs for Home, Practice and Free Play. Screens are hash routes (`#/`, `#/pack/<pack>`, `#/play/<pack>/<level>`, `#/practice[/<pack>/<level>]`, `#/daily[/<date>]`, `#/free-play`), so the back button and reloads keep your place.
+- **Home**: continue where you left off (a level run in progress, else the next unpassed level), today's daily (number, streak, each tier's status, or which level unlocks it), packs with progress and stars, and "your weakest controls" with a Practise button each.
 - **Pack screen**: chapters and levels, each showing its new controls and whether it's locked, new, in progress or passed (best average and stars).
 - **Level run**: the level's rounds one after another ("Round 2 of 5" with progress dots), then a summary: average, stars, pass or not, each round's score, and Next level / Play again / All levels.
 - **Knobs**: vertical drag, fine adjust with a modifier or two-finger drag, double-tap to reset, tap value to type a number; units shown (Hz, s, %, cents).
@@ -342,7 +343,7 @@ One new target per tier per day, identical for every player, with no backend.
 ## 13. Persistence
 
 All storage goes through `storage/storage.ts`. Two keys, each with a schema version and a migration stub:
-- **Progress** (`dialin.progress`): per `packId/levelId`: best run average, stars, passed (sticky once passed) and runs played. The level run in progress (level, pack version, round scores so far, current round's seed), so a reload continues the same round; starting another level replaces it, and a pack version change discards it. The last level played, total rounds, and **average closeness per parameter**, used to show "your weakest controls" on the home screen. Closeness comes from the **first** submit of each round, before the reveal table shows the answer, and only counts controls audible in the target. Per daily (`date/packId/tierId`, Milestone 7): best score, submits used. Current and best streak.
+- **Progress** (`dialin.progress`): per `packId/levelId`: best run average, stars, passed (sticky once passed) and runs played. The level run in progress (level, pack version, round scores so far, current round's seed), so a reload continues the same round; starting another level replaces it, and a pack version change discards it. The last level played, total rounds, and **average closeness per parameter**, used to show "your weakest controls" on the home screen. Closeness comes from the **first** submit of each round, before the reveal table shows the answer, and only counts controls audible in the target. Per daily (`date/packId/tierId`): best score, submits used, finished, and on time (first played on its own date). Streaks are worked out from these.
 - **Library**: saved sounds. A separate key, so a large library never has to be rewritten along with progress.
 
 Request persistent storage (`navigator.storage.persist()`) where supported. Browsers, Safari in particular, can clear data for sites that aren't installed and haven't been used for a while, so nudge users to install the PWA and offer a library export now and then.

@@ -412,6 +412,198 @@ select {
   margin-top: 8px;
 }
 
+/* ── Daily challenge ───────────────────────────────────────────────────── */
+
+.daily-card {
+  margin-top: 12px;
+  border-color: #b8860b;
+}
+
+.daily-card .card-kicker {
+  color: #ffd166;
+}
+
+.streak {
+  margin: 0 0 10px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.tier-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.tier-chip {
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-raised);
+  font-size: 0.85rem;
+}
+
+.tier-status {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.tier-tabs {
+  display: flex;
+  gap: 6px;
+  margin: 8px 0 12px;
+}
+
+.tier-tab {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.tier-tab.current {
+  border-color: var(--accent);
+  background: var(--surface-raised);
+  font-weight: 600;
+}
+
+.button-sub {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 500;
+  line-height: 1.1;
+}
+
+.submit-button {
+  line-height: 1.1;
+}
+
+.share-box {
+  margin-bottom: 12px;
+  padding: 12px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  background: rgb(79 209 197 / 8%);
+}
+
+.share-text {
+  display: block;
+  margin-bottom: 10px;
+  font-variant-numeric: tabular-nums;
+  user-select: all;
+  -webkit-user-select: all;
+}
+
+.share-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.share-status {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.calendar {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.calendar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.calendar-title {
+  font-weight: 600;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.calendar-weekday {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.calendar-day {
+  position: relative;
+  aspect-ratio: 1;
+  min-height: 36px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--surface-raised);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.calendar-day:disabled {
+  background: none;
+  color: var(--surface-raised);
+  cursor: default;
+}
+
+.calendar-day.today {
+  border-color: var(--text-muted);
+}
+
+.calendar-day.selected {
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.calendar-day.mark-onTime::after,
+.calendar-day.mark-played::after,
+.calendar-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.calendar-day.mark-onTime::after,
+.calendar-day.mark-played::after {
+  position: absolute;
+  bottom: 4px;
+  left: calc(50% - 3px);
+  content: '';
+}
+
+.calendar-day.mark-onTime::after,
+.calendar-dot.onTime {
+  background: var(--accent);
+}
+
+.calendar-day.mark-played::after,
+.calendar-dot.played {
+  border: 1px solid var(--accent);
+}
+
+.calendar-key {
+  margin: 10px 0 0;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
 .result-sound-type {
   margin: 0 0 10px;
   color: var(--accent);

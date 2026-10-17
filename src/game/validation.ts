@@ -125,6 +125,12 @@ export function validatePack(pack: Pack, packs: readonly Pack[]): string[] {
   const introduced = [...pack.baseControls, ...levels.flatMap((l) => l.newControls)];
   for (const id of duplicates(introduced)) errors.push(`${where}: ${id} is introduced more than once`);
   for (const level of levels) checkLevel(pack, level, errors);
+  const tiers = pack.daily ?? [];
+  for (const id of duplicates(tiers.map((t) => t.id))) errors.push(`${where}: daily tier id "${id}" is used twice`);
+  for (const tier of tiers) {
+    if (!ITEM_ID.test(tier.id)) errors.push(`${where}: daily tier id "${tier.id}" must be lower case letters, digits and dashes`);
+    if (!levels.some((l) => l.id === tier.levelId)) errors.push(`${where}: daily tier "${tier.id}" uses unknown level "${tier.levelId}"`);
+  }
   return errors;
 }
 

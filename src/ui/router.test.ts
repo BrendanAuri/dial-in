@@ -7,6 +7,8 @@ const ROUTES: readonly Route[] = [
   { name: 'level', packId: 'bass.dubstep', levelId: 'wobble-2' },
   { name: 'practice' },
   { name: 'practice', packId: 'foundations', levelId: 'brightness' },
+  { name: 'daily' },
+  { name: 'daily', date: '2026-10-15' },
   { name: 'freeplay' },
   { name: 'calibrate' },
 ];

@@ -104,6 +104,14 @@ describe('validatePack', () => {
     ]);
   });
 
+  it('checks daily tiers', () => {
+    const pack = packWith({}, { daily: [{ id: 'a', title: 'A', levelId: 'one' }, { id: 'a', title: 'A2', levelId: 'missing' }] });
+    expect(errorsFor(pack)).toEqual([
+      expect.stringMatching(/daily tier id "a" is used twice/),
+      expect.stringMatching(/uses unknown level "missing"/),
+    ]);
+  });
+
   it('checks templates like the level generator', () => {
     const pack = packWith({
       generator: {

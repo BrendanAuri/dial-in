@@ -1,5 +1,6 @@
 import { PACKS } from '../../content';
-import { WEAKEST_CONTROLS_SHOWN, WEAKEST_MIN_ROUNDS } from '../../engine/constants';
+import { DAILY_SUBMITS, WEAKEST_CONTROLS_SHOWN, WEAKEST_MIN_ROUNDS } from '../../engine/constants';
+import { dailyKey, dailyNumber, dailyTiers, isTierAvailable, localDate, streaks } from '../../game/daily';
 import { controlName } from '../../engine/params';
 import { levelIntroducing, levelNumber } from '../../game/packs';
 import {
@@ -28,6 +29,10 @@ export function Home({ navigate }: HomeProps) {
   const run = progress.run && runLevel && runLevel.pack.version === progress.run.packVersion ? progress.run : null;
   const suggestion = suggestedLevel(progress, PACKS);
   const weak = weakestControls(progress, WEAKEST_CONTROLS_SHOWN, WEAKEST_MIN_ROUNDS);
+  const today = localDate(new Date());
+  const dailies = dailyTiers(PACKS);
+  const firstDaily = dailies[0];
+  const streak = streaks(progress, today);
 
   /** Practise the level that introduces a control, if it's been passed; otherwise a mix. */
   function practise(control: WeakControl): void {
@@ -96,6 +101,41 @@ export function Home({ navigate }: HomeProps) {
           </>
         )}
       </section>
+
+      {dailies.length > 0 && (
+        <section className="card daily-card" aria-labelledby="daily-title">
+          <h2 id="daily-title" className="card-kicker">
+            Daily #{dailyNumber(today)}
+          </h2>
+          <p className="streak">
+            {streak.current > 0 ? `🔥 ${streak.current}-day streak` : 'No streak yet'} · best {streak.best}
+          </p>
+          <div className="tier-chips">
+            {dailies.map((ref) => {
+              const record = progress.dailies[dailyKey(today, ref)];
+              const status = !isTierAvailable(progress, ref)
+                ? '🔒'
+                : record?.finished
+                  ? `✓ ${record.best}`
+                  : record
+                    ? `${record.submits}/${DAILY_SUBMITS}`
+                    : 'new';
+              return (
+                <span key={`${ref.pack.id}/${ref.tier.id}`} className="tier-chip">
+                  {ref.tier.title} <span className="tier-status">{status}</span>
+                </span>
+              );
+            })}
+          </div>
+          {dailies.some((ref) => isTierAvailable(progress, ref)) ? (
+            <button type="button" className="button primary" onClick={() => navigate({ name: 'daily' })}>
+              Play today's daily
+            </button>
+          ) : (
+            <p className="card-note">Pass {firstDaily?.level.title} to unlock the daily challenge.</p>
+          )}
+        </section>
+      )}
 
       <h2 className="section-title">Packs</h2>
       <div className="pack-list">

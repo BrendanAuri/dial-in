@@ -75,6 +75,15 @@ export interface Chapter {
   readonly levels: readonly Level[];
 }
 
+/** A daily challenge tier: one shared target a day, using a level's controls and generator. */
+export interface DailyTier {
+  /** e.g. 'basics', 'full'. */
+  readonly id: string;
+  readonly title: string;
+  /** Uses this level's controls and generator; available once the level is passed. */
+  readonly levelId: string;
+}
+
 export interface PackRequirements {
   /** Packs to pass completely first. */
   readonly packs?: readonly string[];
@@ -93,4 +102,6 @@ export interface Pack {
   /** Unlocked from the start of the pack. */
   readonly baseControls: readonly ParamId[];
   readonly chapters: readonly Chapter[];
+  /** Daily challenge tiers this pack offers. */
+  readonly daily?: readonly DailyTier[];
 }

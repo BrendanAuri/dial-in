@@ -54,6 +54,11 @@ export const FOUNDATIONS_PACK: Pack = {
   description: 'The building blocks of every synth sound, one control at a time.',
   version: 1,
   baseControls: [],
+  daily: [
+    { id: 'basics', title: 'Basics', levelId: 'resonance' },
+    { id: 'shapes', title: 'Shapes', levelId: 'plucks-and-sweeps' },
+    { id: 'full', title: 'Full', levelId: 'sound-types' },
+  ],
   chapters: [
     {
       id: 'oscillators',

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { startAudio, type LiveAudio } from './ui/audio';
 import { useRoute, type Navigate, type Route } from './ui/router';
 import { Calibration } from './ui/screens/Calibration';
+import { DailyScreen } from './ui/screens/DailyScreen';
 import { FreePlay } from './ui/screens/FreePlay';
 import { Home } from './ui/screens/Home';
 import { LevelScreen } from './ui/screens/LevelScreen';
@@ -95,6 +96,8 @@ function Screen({ route, audio, navigate }: { readonly route: Route; readonly au
           navigate={navigate}
         />
       );
+    case 'daily':
+      return <DailyScreen key={route.date ?? 'today'} audio={audio} date={route.date} navigate={navigate} />;
     case 'freeplay':
       return <FreePlay audio={audio} />;
   }

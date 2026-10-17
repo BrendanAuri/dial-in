@@ -5,7 +5,14 @@
 import { PROGRESS_SCHEMA_VERSION } from '../engine/constants';
 import { PARAM_IDS, type ParamId } from '../engine/params';
 import type { KeyValueStore } from '../storage/storage';
-import { EMPTY_PROGRESS, type ControlStat, type LevelRecord, type LevelRun, type Progress } from './progress';
+import {
+  EMPTY_PROGRESS,
+  type ControlStat,
+  type DailyRecord,
+  type LevelRecord,
+  type LevelRun,
+  type Progress,
+} from './progress';
 
 export const PROGRESS_KEY = 'dialin.progress';
 /** Unreadable data is copied here before anything can overwrite it. */
@@ -39,6 +46,12 @@ function readControl(value: unknown): ControlStat | null {
   return { total: value.total, count: value.count };
 }
 
+function readDaily(value: unknown): DailyRecord | null {
+  if (!isRecord(value) || !isScore(value.best) || !isCount(value.submits)) return null;
+  if (typeof value.finished !== 'boolean' || typeof value.onTime !== 'boolean') return null;
+  return { best: value.best, submits: value.submits, finished: value.finished, onTime: value.onTime };
+}
+
 function readRun(value: unknown): LevelRun | null {
   if (!isRecord(value) || typeof value.level !== 'string' || !isCount(value.packVersion)) return null;
   if (!Array.isArray(value.scores) || !value.scores.every(isScore)) return null;
@@ -66,12 +79,20 @@ function migrate(data: unknown): Progress | null {
       if (stat) controls[id] = stat;
     }
   }
+  const dailies: Record<string, DailyRecord> = {};
+  if (isRecord(data.dailies)) {
+    for (const [key, value] of Object.entries(data.dailies)) {
+      const record = readDaily(value);
+      if (record) dailies[key] = record;
+    }
+  }
   return {
     levels,
     controls,
     roundsPlayed: isCount(data.roundsPlayed) ? data.roundsPlayed : 0,
     lastLevel: typeof data.lastLevel === 'string' ? data.lastLevel : null,
     run: readRun(data.run),
+    dailies,
   };
 }
 

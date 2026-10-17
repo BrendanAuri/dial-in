@@ -7,6 +7,10 @@ export const FIXTURE_PACK: Pack = {
   description: 'Test fixture.',
   version: 3,
   baseControls: ['osc.octave'],
+  daily: [
+    { id: 'easy', title: 'Easy', levelId: 'wave' },
+    { id: 'hard', title: 'Hard', levelId: 'lfo' },
+  ],
   chapters: [
     {
       id: 'one',

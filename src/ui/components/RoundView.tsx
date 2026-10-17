@@ -18,6 +18,27 @@ import { isButtonLike, isTypingTarget } from '../hooks';
 import { ResultCard } from './ResultCard';
 import { SynthPanel } from './SynthPanel';
 
+/**
+ * Limits for challenge rounds (the daily). Without rules a round has
+ * unlimited submits, hints, and shows the answer after every submit.
+ */
+export interface RoundRules {
+  readonly maxSubmits: number;
+  readonly hints: boolean;
+  /** A score of at least this finishes the round early. */
+  readonly finishScore: number;
+}
+
+/** Attempts made on a round so far, e.g. to continue a daily after a reload. */
+export interface Attempts {
+  readonly submits: number;
+  readonly best: number | null;
+  /** Out of submits, scored finishScore, or the answer was revealed. */
+  readonly finished: boolean;
+}
+
+const NO_ATTEMPTS: Attempts = { submits: 0, best: null, finished: false };
+
 interface RoundViewProps {
   readonly audio: LiveAudio;
   readonly pack: Pack;
@@ -25,24 +46,32 @@ interface RoundViewProps {
   readonly seed: number;
   /** Shown at the top left, e.g. "Round 2 of 5". */
   readonly heading: ReactNode;
-  /** Label for moving on from the result card, e.g. "Next round" or "Finish level". */
-  readonly nextLabel: string;
+  /** Label for moving on from the result card, e.g. "Next round"; null for no button. */
+  readonly nextLabel: string | null;
   /** Called with the round's best score when the player moves on. */
-  readonly onNext: (best: number) => void;
+  readonly onNext?: (best: number) => void;
   /** Called once, with the first submitted attempt (used for the per-control stats). */
   readonly onFirstResult?: (result: RoundResult) => void;
   readonly notice?: string | null;
+  readonly rules?: RoundRules;
+  readonly saved?: Attempts;
+  /** Called after every submit, and when the answer is revealed. */
+  readonly onAttempts?: (attempts: Attempts) => void;
 }
 
 /**
  * One round: hear the target, match it with the unlocked controls, submit
  * for a score and tips, retry or move on. Mount with a new key per round.
  */
-export function RoundView({ audio, pack, level, seed, heading, nextLabel, onNext, onFirstResult, notice }: RoundViewProps) {
+export function RoundView(props: RoundViewProps) {
+  const { audio, pack, level, seed, heading, nextLabel, onNext, onFirstResult, notice, rules, onAttempts } = props;
+  const saved = props.saved ?? NO_ATTEMPTS;
   const round = useMemo(() => generateRound(pack, level, seed), [pack, level, seed]);
   const [mine, setMine] = useState<Patch>(() => ({ ...round.start }));
   const [result, setResult] = useState<RoundResult | null>(null);
-  const [best, setBest] = useState<number | null>(null);
+  const [best, setBest] = useState<number | null>(saved.best);
+  const [submits, setSubmits] = useState(saved.submits);
+  const [gaveUp, setGaveUp] = useState(saved.finished);
   const [hintsUsed, setHintsUsed] = useState(0);
   const [hint, setHint] = useState<string | null>(null);
   const [scoring, setScoring] = useState(false);
@@ -50,7 +79,7 @@ export function RoundView({ audio, pack, level, seed, heading, nextLabel, onNext
   const [player] = useState(() => new ComparePlayer(audio.ctx, audio.output));
   const playback = useSyncExternalStore(player.subscribe, player.getState);
   const submitToken = useRef(0);
-  const reportedFirst = useRef(false);
+  const reportedFirst = useRef(saved.submits > 0);
 
   const passMark = passMarkOf(level);
   const context: ListeningContext = useMemo(() => ({ note: round.note, holdTime: DEFAULT_HOLD_TIME }), [round]);
@@ -58,7 +87,12 @@ export function RoundView({ audio, pack, level, seed, heading, nextLabel, onNext
   const code = formatReplayCode({ packId: pack.id, levelId: level.id, packVersion: pack.version, seed });
   const soundType = level.generator.templates?.find((t) => t.id === round.template)?.title ?? null;
   const changedSinceSubmit = result !== null && !patchesEqual(result.mine, mine);
-  const showNext = result !== null && !changedSinceSubmit;
+  const isFinished = (count: number, top: number | null, revealed: boolean): boolean =>
+    rules === undefined || revealed || count >= rules.maxSubmits || (top ?? 0) >= rules.finishScore;
+  const finished = rules === undefined ? result !== null : isFinished(submits, best, gaveUp);
+  const submitsLeft = rules === undefined ? Infinity : rules.maxSubmits - submits;
+  const canSubmit = !scoring && (rules === undefined || (!finished && submitsLeft > 0 && (result === null || changedSinceSubmit)));
+  const showNext = nextLabel !== null && result !== null && !changedSinceSubmit && (rules === undefined || finished);
 
   useEffect(() => {
     player.updateMine(mine, audio.ctx.currentTime);
@@ -106,7 +140,7 @@ export function RoundView({ audio, pack, level, seed, heading, nextLabel, onNext
 
   /** Render both sounds offline, compare them, then score. */
   const submit = useCallback(() => {
-    if (scoring) return;
+    if (!canSubmit) return;
     const submitted = mine;
     const token = ++submitToken.current;
     setScoring(true);
@@ -121,16 +155,27 @@ export function RoundView({ audio, pack, level, seed, heading, nextLabel, onNext
         hintsUsed,
         passMark,
       });
+      const count = submits + 1;
+      const top = Math.max(best ?? 0, scored.score.score);
       setScoring(false);
       setResult(scored);
-      setBest((previous) => Math.max(previous ?? 0, scored.score.score));
+      setSubmits(count);
+      setBest(top);
       setHint(null);
+      onAttempts?.({ submits: count, best: top, finished: isFinished(count, top, gaveUp) });
       if (!reportedFirst.current) {
         reportedFirst.current = true;
         onFirstResult?.(scored);
       }
     });
-  }, [scoring, mine, round, context, hintsUsed, passMark, onFirstResult]);
+    // isFinished only reads `rules`, which stays the same for a round's lifetime.
+  }, [canSubmit, mine, round, context, hintsUsed, passMark, submits, best, gaveUp, onAttempts, onFirstResult]);
+
+  /** End a challenge round now and show the answer. */
+  const reveal = useCallback(() => {
+    setGaveUp(true);
+    onAttempts?.({ submits, best, finished: true });
+  }, [submits, best, onAttempts]);
 
   const giveHint = useCallback(() => {
     const params = scoreParams(round.target, mine, round.unlocked, context);
@@ -139,7 +184,7 @@ export function RoundView({ audio, pack, level, seed, heading, nextLabel, onNext
   }, [round, mine, context]);
 
   const next = useCallback(() => {
-    if (best !== null) onNext(best);
+    if (best !== null) onNext?.(best);
   }, [best, onNext]);
 
   const onParamChange = useCallback(
@@ -200,8 +245,15 @@ export function RoundView({ audio, pack, level, seed, heading, nextLabel, onNext
           passMark={passMark}
           changed={changedSinceSubmit}
           soundType={soundType}
+          showReveal={finished}
+          attemptsNote={
+            rules && !finished
+              ? `${submits} of ${rules.maxSubmits} submits used. The answer appears when you've used them all or score ${rules.finishScore}+.`
+              : null
+          }
           nextLabel={nextLabel}
-          onRetry={() => setResult(null)}
+          onRetry={rules === undefined || (!finished && submitsLeft > 0) ? () => setResult(null) : null}
+          onReveal={rules && !finished ? reveal : null}
           onNext={next}
         />
       )}
@@ -215,9 +267,11 @@ export function RoundView({ audio, pack, level, seed, heading, nextLabel, onNext
       <SynthPanel patch={mine} onChange={onParamChange} locked={locked} />
 
       <div className="round-tools">
-        <button type="button" className="button" onClick={giveHint} disabled={result !== null}>
-          Hint (−{HINT_COST})
-        </button>
+        {(rules === undefined || rules.hints) && (
+          <button type="button" className="button" onClick={giveHint} disabled={result !== null}>
+            Hint (−{HINT_COST})
+          </button>
+        )}
         <button type="button" className="button" onClick={() => setMine({ ...round.start })}>
           Reset knobs
         </button>
@@ -260,10 +314,11 @@ export function RoundView({ audio, pack, level, seed, heading, nextLabel, onNext
           type="button"
           className="button submit-button"
           onClick={showNext ? next : submit}
-          disabled={scoring}
+          disabled={!showNext && !canSubmit}
           aria-busy={scoring}
         >
-          {scoring ? 'Scoring…' : showNext ? 'Next' : 'Submit'}
+          {scoring ? 'Scoring…' : showNext ? 'Next' : rules && finished ? 'Finished' : 'Submit'}
+          {rules && !finished && !scoring && <span className="button-sub">{submitsLeft} left</span>}
         </button>
       </div>
     </div>

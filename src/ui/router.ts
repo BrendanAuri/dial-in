@@ -1,7 +1,8 @@
 /**
  * Hash routes, so the browser's back button and reloads keep you where you
  * were: #/, #/pack/foundations, #/play/foundations/brightness, #/practice,
- * #/practice/foundations/brightness, #/free-play, and #calibrate (dev page).
+ * #/practice/foundations/brightness, #/daily, #/daily/2026-10-15, #/free-play,
+ * and #calibrate (dev page).
  */
 import { useCallback, useSyncExternalStore } from 'react';
 
@@ -10,6 +11,7 @@ export type Route =
   | { readonly name: 'pack'; readonly packId: string }
   | { readonly name: 'level'; readonly packId: string; readonly levelId: string }
   | { readonly name: 'practice'; readonly packId?: string; readonly levelId?: string }
+  | { readonly name: 'daily'; readonly date?: string }
   | { readonly name: 'freeplay' }
   | { readonly name: 'calibrate' };
 
@@ -22,6 +24,7 @@ export function parseRoute(hash: string): Route {
   if (first === 'pack' && second) return { name: 'pack', packId: second };
   if (first === 'play' && second && third) return { name: 'level', packId: second, levelId: third };
   if (first === 'practice') return second && third ? { name: 'practice', packId: second, levelId: third } : { name: 'practice' };
+  if (first === 'daily') return second ? { name: 'daily', date: second } : { name: 'daily' };
   if (first === 'free-play') return { name: 'freeplay' };
   return { name: 'home' };
 }
@@ -37,6 +40,8 @@ export function routeHash(route: Route): string {
       return `#/play/${e(route.packId)}/${e(route.levelId)}`;
     case 'practice':
       return route.packId && route.levelId ? `#/practice/${e(route.packId)}/${e(route.levelId)}` : '#/practice';
+    case 'daily':
+      return route.date ? `#/daily/${e(route.date)}` : '#/daily';
     case 'freeplay':
       return '#/free-play';
     case 'calibrate':

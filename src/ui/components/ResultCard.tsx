@@ -17,8 +17,15 @@ interface ResultCardProps {
   readonly changed: boolean;
   /** The target's sound type ("Pad"), for levels built from templates. */
   readonly soundType: string | null;
-  readonly nextLabel: string;
-  readonly onRetry: () => void;
+  /** Show the target's values and sound type (challenge rounds hide them until finished). */
+  readonly showReveal: boolean;
+  /** e.g. "1 of 3 submits used…", or null. */
+  readonly attemptsNote: string | null;
+  /** Null hides the button. */
+  readonly nextLabel: string | null;
+  readonly onRetry: (() => void) | null;
+  /** Ends a challenge round early and shows the answer; null hides the button. */
+  readonly onReveal: (() => void) | null;
   readonly onNext: () => void;
 }
 
@@ -29,7 +36,8 @@ function meterClass(closeness: number): string {
 }
 
 /** Score, stars, the top tips, and every unlocked control compared with the target. */
-export function ResultCard({ result, target, best, passMark, changed, soundType, nextLabel, onRetry, onNext }: ResultCardProps) {
+export function ResultCard(props: ResultCardProps) {
+  const { result, target, best, passMark, changed, soundType, showReveal, attemptsNote, nextLabel } = props;
   const { score, params, tips, mine } = result;
   const tipFor = new Map(tips.map((tip) => [tip.id, tip.text]));
 
@@ -65,7 +73,9 @@ export function ResultCard({ result, target, best, passMark, changed, soundType,
         </div>
       </div>
 
-      {soundType && <p className="result-sound-type">This was a {soundType.toLowerCase()}.</p>}
+      {soundType && showReveal && <p className="result-sound-type">This was a {soundType.toLowerCase()}.</p>}
+
+      {attemptsNote && <p className="card-note">{attemptsNote}</p>}
 
       {changed && (
         <p className="notice" role="status">
@@ -83,54 +93,65 @@ export function ResultCard({ result, target, best, passMark, changed, soundType,
         </ol>
       )}
 
-      <table className="reveal-table">
-        <thead>
-          <tr>
-            <th scope="col">Control</th>
-            <th scope="col">Target</th>
-            <th scope="col">Yours</th>
-            <th scope="col">
-              <span className="visually-hidden">Closeness</span>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {params.controls.map((control) => {
-            const note = control.inaudible ?? tipFor.get(control.id);
-            return (
-              <Fragment key={control.id}>
-                <tr className={control.inaudible ? 'inaudible' : undefined}>
-                  <th scope="row">{controlName(control.id)}</th>
-                  <td>{formatParam(control.id, target)}</td>
-                  <td>{formatParam(control.id, mine)}</td>
-                  <td className="meter-cell">
-                    {control.inaudible ? (
-                      <span className="not-scored">not scored</span>
-                    ) : (
-                      <span className="meter" role="img" aria-label={`${Math.round(control.closeness * 100)}% close`}>
-                        <span className={meterClass(control.closeness)} style={{ width: `${control.closeness * 100}%` }} />
-                      </span>
-                    )}
-                  </td>
-                </tr>
-                {note && (
-                  <tr className={control.inaudible ? 'tip-row inaudible' : 'tip-row'}>
-                    <td colSpan={4}>{note}</td>
+      {showReveal && (
+        <table className="reveal-table">
+          <thead>
+            <tr>
+              <th scope="col">Control</th>
+              <th scope="col">Target</th>
+              <th scope="col">Yours</th>
+              <th scope="col">
+                <span className="visually-hidden">Closeness</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {params.controls.map((control) => {
+              const note = control.inaudible ?? tipFor.get(control.id);
+              return (
+                <Fragment key={control.id}>
+                  <tr className={control.inaudible ? 'inaudible' : undefined}>
+                    <th scope="row">{controlName(control.id)}</th>
+                    <td>{formatParam(control.id, target)}</td>
+                    <td>{formatParam(control.id, mine)}</td>
+                    <td className="meter-cell">
+                      {control.inaudible ? (
+                        <span className="not-scored">not scored</span>
+                      ) : (
+                        <span className="meter" role="img" aria-label={`${Math.round(control.closeness * 100)}% close`}>
+                          <span className={meterClass(control.closeness)} style={{ width: `${control.closeness * 100}%` }} />
+                        </span>
+                      )}
+                    </td>
                   </tr>
-                )}
-              </Fragment>
-            );
-          })}
-        </tbody>
-      </table>
+                  {note && (
+                    <tr className={control.inaudible ? 'tip-row inaudible' : 'tip-row'}>
+                      <td colSpan={4}>{note}</td>
+                    </tr>
+                  )}
+                </Fragment>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
 
       <div className="form-actions">
-        <button type="button" className="button" onClick={onRetry}>
-          Try again
-        </button>
-        <button type="button" className="button primary" onClick={onNext}>
-          {nextLabel}
-        </button>
+        {props.onReveal && (
+          <button type="button" className="button" onClick={props.onReveal}>
+            Reveal answer
+          </button>
+        )}
+        {props.onRetry && (
+          <button type="button" className={nextLabel === null ? 'button primary' : 'button'} onClick={props.onRetry}>
+            Try again
+          </button>
+        )}
+        {nextLabel !== null && (
+          <button type="button" className="button primary" onClick={props.onNext}>
+            {nextLabel}
+          </button>
+        )}
       </div>
     </section>
   );

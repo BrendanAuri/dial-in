@@ -176,6 +176,14 @@ export const WEAKEST_CONTROLS_SHOWN = 3;
 /** Rounds a control must have been scored in before it can be listed as weak. */
 export const WEAKEST_MIN_ROUNDS = 3;
 
+// ── Daily challenge ──────────────────────────────────────────────────────
+/** Daily #1 falls on this local date; the archive starts here. */
+export const DAILY_EPOCH = '2026-10-01';
+/** Submits per daily tier; the best one counts. */
+export const DAILY_SUBMITS = 3;
+/** Scoring at least this ends a daily early and shows the answer. */
+export const DAILY_FINISH_SCORE = 97;
+
 // ── Sound library ────────────────────────────────────────────────────────
 export const LIBRARY_SCHEMA_VERSION = 1;
 export const SESSION_SCHEMA_VERSION = 1;

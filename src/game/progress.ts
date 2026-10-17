@@ -35,6 +35,18 @@ export interface LevelRun {
   readonly seed: number;
 }
 
+/** One daily challenge tier on one date. */
+export interface DailyRecord {
+  /** Best score so far, 0–100. */
+  readonly best: number;
+  /** Submits used. */
+  readonly submits: number;
+  /** Out of submits, scored high enough to finish, or revealed the answer. */
+  readonly finished: boolean;
+  /** First played on its own date (counts towards streaks), not from the archive. */
+  readonly onTime: boolean;
+}
+
 export interface Progress {
   readonly levels: Readonly<Record<string, LevelRecord>>;
   readonly controls: Readonly<Partial<Record<ParamId, ControlStat>>>;
@@ -42,9 +54,18 @@ export interface Progress {
   /** The level played most recently, as "packId/levelId". */
   readonly lastLevel: string | null;
   readonly run: LevelRun | null;
+  /** Keyed "YYYY-MM-DD/packId/tierId". */
+  readonly dailies: Readonly<Record<string, DailyRecord>>;
 }
 
-export const EMPTY_PROGRESS: Progress = { levels: {}, controls: {}, roundsPlayed: 0, lastLevel: null, run: null };
+export const EMPTY_PROGRESS: Progress = {
+  levels: {},
+  controls: {},
+  roundsPlayed: 0,
+  lastLevel: null,
+  run: null,
+  dailies: {},
+};
 
 export interface LevelRef {
   readonly pack: Pack;
