@@ -2,7 +2,15 @@
  * Seeded target generation: the same pack, level and seed always give the
  * same note and target.
  */
-import type { ChoiceGenerator, Level, Pack, RangeGenerator } from '../content/schema';
+import type {
+  ChoiceGenerator,
+  GeneratorParams,
+  GeneratorSpec,
+  GeneratorTemplate,
+  Level,
+  Pack,
+  RangeGenerator,
+} from '../content/schema';
 import {
   DEFAULT_HOLD_TIME,
   TARGET_MAX_ATTEMPTS,
@@ -20,7 +28,7 @@ import {
   type ParamId,
   type Patch,
 } from '../engine/params';
-import { patchFromRecord } from '../engine/patch';
+import { DEFAULT_PATCH, patchFromRecord } from '../engine/patch';
 import { fromNormalised } from '../engine/scale';
 import { isAudible } from '../scoring/audible';
 import { paramDistance } from '../scoring/paramScore';
@@ -39,6 +47,8 @@ export interface GeneratedRound {
   readonly unlocked: readonly ParamId[];
   /** Candidates generated before one was accepted (TARGET_MAX_ATTEMPTS if none was). */
   readonly attempts: number;
+  /** Id of the sound-type template the target was built from, if the level has templates. */
+  readonly template: string | null;
 }
 
 /** The level's starting knob positions. */
@@ -58,9 +68,8 @@ function sampleChoice<V>(rng: Rng, options: readonly DiscreteOption<V>[], gen: C
   return gen.weights ? weightedPick(rng, gen.options, gen.weights) : pick(rng, gen.options);
 }
 
-/** One candidate target: unlocked controls drawn from the generator, the rest as they start. */
-function sampleTarget(rng: Rng, level: Level, unlocked: ReadonlySet<ParamId>, start: Patch): Patch {
-  const gen = level.generator.params;
+/** One candidate: unlocked controls drawn from `gen`, the rest left as in `base`. */
+function samplePatch(rng: Rng, gen: GeneratorParams, unlocked: ReadonlySet<ParamId>, base: Readonly<Patch>): Patch {
   const record: Record<string, unknown> = {};
   for (const id of PARAM_IDS) {
     if (!unlocked.has(id)) continue;
@@ -68,7 +77,19 @@ function sampleTarget(rng: Rng, level: Level, unlocked: ReadonlySet<ParamId>, st
       ? sampleRange(rng, PARAMS[id], gen[id])
       : sampleChoice<string | number>(rng, PARAMS[id].options, gen[id]);
   }
-  return patchFromRecord(record, start);
+  return patchFromRecord(record, base);
+}
+
+/** Pick one of the spec's templates by weight, or null if it has none. */
+function pickTemplate(rng: Rng, spec: GeneratorSpec): GeneratorTemplate | null {
+  const templates = spec.templates ?? [];
+  if (templates.length === 0) return null;
+  return weightedPick(rng, templates, templates.map((template) => template.weight));
+}
+
+/** A whole patch from one template, every control in play. */
+export function patchFromTemplate(rng: Rng, template: GeneratorTemplate, base: Readonly<Patch> = DEFAULT_PATCH): Patch {
+  return samplePatch(rng, template.params, new Set(PARAM_IDS), base);
 }
 
 /**
@@ -90,8 +111,11 @@ export function generateRound(pack: Pack, level: Level, seed: number): Generated
   const unlocked = unlockedControls(pack, level.id);
   const unlockedSet = new Set(unlocked);
   const start = startingPatch(level);
-  const low = noteNameToMidi(level.noteRange[0]);
-  const high = noteNameToMidi(level.noteRange[1]);
+  const template = pickTemplate(rng, level.generator);
+  const params: GeneratorParams = template ? { ...level.generator.params, ...template.params } : level.generator.params;
+  const noteRange = template?.noteRange ?? level.noteRange;
+  const low = noteNameToMidi(noteRange[0]);
+  const high = noteNameToMidi(noteRange[1]);
   const note = low + Math.floor(rng() * (high - low + 1));
   // The level's own new controls must move; otherwise any unlocked one will do.
   const fresh = level.newControls.filter((id) => unlockedSet.has(id));
@@ -101,8 +125,8 @@ export function generateRound(pack: Pack, level: Level, seed: number): Generated
   let attempts = 0;
   while (attempts < TARGET_MAX_ATTEMPTS) {
     attempts++;
-    target = sampleTarget(rng, level, unlockedSet, start);
+    target = samplePatch(rng, params, unlockedSet, start);
     if (isFairTarget(target, start, note, focus)) break;
   }
-  return { seed, note, start, target, unlocked, attempts };
+  return { seed, note, start, target, unlocked, attempts, template: template?.id ?? null };
 }

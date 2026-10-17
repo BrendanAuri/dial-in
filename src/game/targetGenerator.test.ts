@@ -89,6 +89,40 @@ describe('generateRound', () => {
   });
 });
 
+describe('templates', () => {
+  it('picks a template per round and uses its settings and note range', () => {
+    const rounds = SEEDS.map((seed) => generateRound(FIXTURE_PACK, level('lfo'), seed));
+    const low = rounds.filter((r) => r.template === 'low');
+    const high = rounds.filter((r) => r.template === 'high');
+    expect(low.length).toBeGreaterThan(50);
+    expect(high.length).toBeGreaterThan(50);
+    for (const r of low) {
+      expect(r.target['osc.wave']).toBe('sine');
+      expect(r.note).toBeGreaterThanOrEqual(noteNameToMidi('C1'));
+      expect(r.note).toBeLessThanOrEqual(noteNameToMidi('C2'));
+    }
+    for (const r of high) {
+      expect(r.target['osc.wave']).toBe('saw');
+      expect(r.note).toBeGreaterThanOrEqual(noteNameToMidi('C3'));
+    }
+  });
+
+  it('reports no template for levels without any', () => {
+    expect(generateRound(FIXTURE_PACK, level('wave'), 1).template).toBeNull();
+  });
+
+  it('builds Foundations sound-type rounds from every template', () => {
+    for (const pack of PACKS) {
+      for (const lvl of packLevels(pack)) {
+        const templates = lvl.generator.templates ?? [];
+        if (templates.length === 0) continue;
+        const used = new Set(SEEDS.map((seed) => generateRound(pack, lvl, seed).template));
+        for (const template of templates) expect(used, template.id).toContain(template.id);
+      }
+    }
+  });
+});
+
 describe('estimateLoudness', () => {
   it('treats the default patch as full level for the whole note', () => {
     const loudness = estimateLoudness(DEFAULT_PATCH, 48, DEFAULT_HOLD_TIME);

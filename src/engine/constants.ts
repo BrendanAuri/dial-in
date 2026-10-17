@@ -167,6 +167,15 @@ export const RELEASE_MIN_AUDIBLE_LEVEL = 0.01;
  */
 export const WAVEFORM_MIN_CUTOFF_RATIO = 1;
 
+// ── Levels and progress ──────────────────────────────────────────────────
+/** Rounds in a level run, unless the level sets its own. */
+export const DEFAULT_ROUNDS = 5;
+export const PROGRESS_SCHEMA_VERSION = 1;
+/** How many weakest controls Home lists. */
+export const WEAKEST_CONTROLS_SHOWN = 3;
+/** Rounds a control must have been scored in before it can be listed as weak. */
+export const WEAKEST_MIN_ROUNDS = 3;
+
 // ── Sound library ────────────────────────────────────────────────────────
 export const LIBRARY_SCHEMA_VERSION = 1;
 export const SESSION_SCHEMA_VERSION = 1;
@@ -175,34 +184,6 @@ export const SOUND_TAG_MAX_LENGTH = 24;
 export const SOUND_MAX_TAGS = 8;
 /** Suggest a backup export after this many saves since the last one. */
 export const BACKUP_NUDGE_SAVES = 10;
-
-// ── Randomise ────────────────────────────────────────────────────────────
-/**
- * Musical ranges for Free Play's Randomise button. A stand-in until the
- * Foundations pack's sound-type templates exist (Milestone 6).
- * Pairs are [min, max]; chances are probabilities.
- */
-export const RANDOMISE = {
-  octaveWeights: [0.25, 0.5, 0.25],
-  detuneChance: 0.5,
-  detune: [3, 30],
-  noiseChance: 0.3,
-  noise: [0.05, 0.4],
-  cutoff: [150, 8000],
-  resonance: [0, 0.7],
-  filterEnvChance: 0.5,
-  filterEnvAmount: [0.5, 4],
-  filterEnvDecay: [0.05, 1],
-  fastAttackChance: 0.7,
-  fastAttack: [0.001, 0.05],
-  slowAttack: [0.05, 1.5],
-  decay: [0.05, 1.5],
-  sustain: [0, 1],
-  release: [0.02, 1.5],
-  lfoChance: 0.4,
-  lfoRate: [0.3, 10],
-  lfoDepth: [0.1, 0.7],
-} as const;
 
 // ── Envelopes ────────────────────────────────────────────────────────────
 /**

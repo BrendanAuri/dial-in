@@ -1,28 +1,37 @@
 import { useState } from 'react';
 import { startAudio, type LiveAudio } from './ui/audio';
+import { useRoute, type Navigate, type Route } from './ui/router';
 import { Calibration } from './ui/screens/Calibration';
 import { FreePlay } from './ui/screens/FreePlay';
-import { RoundScreen } from './ui/screens/RoundScreen';
+import { Home } from './ui/screens/Home';
+import { LevelScreen } from './ui/screens/LevelScreen';
+import { PackScreen } from './ui/screens/PackScreen';
+import { PracticeScreen } from './ui/screens/PracticeScreen';
 import { Start } from './ui/screens/Start';
 
-type Screen = 'rounds' | 'freeplay';
+type Tab = 'home' | 'practice' | 'freeplay';
 
-const SCREENS: readonly { readonly id: Screen; readonly label: string }[] = [
-  { id: 'rounds', label: 'Rounds' },
-  { id: 'freeplay', label: 'Free Play' },
+const TABS: readonly { readonly id: Tab; readonly label: string; readonly route: Route }[] = [
+  { id: 'home', label: 'Home', route: { name: 'home' } },
+  { id: 'practice', label: 'Practice', route: { name: 'practice' } },
+  { id: 'freeplay', label: 'Free Play', route: { name: 'freeplay' } },
 ];
 
-/** The hidden dev calibration page is opened with #calibrate. */
-const CALIBRATION_HASH = '#calibrate';
-
-export function App() {
-  return window.location.hash === CALIBRATION_HASH ? <Calibration /> : <MainApp />;
+function tabOf(route: Route): Tab {
+  if (route.name === 'practice') return 'practice';
+  if (route.name === 'freeplay') return 'freeplay';
+  return 'home';
 }
 
-function MainApp() {
+export function App() {
+  const [route, navigate] = useRoute();
+  if (route.name === 'calibrate') return <Calibration />;
+  return <MainApp route={route} navigate={navigate} />;
+}
+
+function MainApp({ route, navigate }: { readonly route: Route; readonly navigate: Navigate }) {
   const [audio, setAudio] = useState<LiveAudio | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [screen, setScreen] = useState<Screen>('rounds');
 
   function start(): void {
     setError(null);
@@ -33,25 +42,60 @@ function MainApp() {
 
   if (!audio) return <Start onStart={start} error={error} />;
 
+  const current = tabOf(route);
   return (
     <>
       <header className="app-bar">
-        <span className="app-title">Dial In</span>
+        <button type="button" className="app-title" onClick={() => navigate({ name: 'home' })}>
+          Dial In
+        </button>
         <nav className="tabs" aria-label="Mode">
-          {SCREENS.map((s) => (
+          {TABS.map((tab) => (
             <button
-              key={s.id}
+              key={tab.id}
               type="button"
-              className={s.id === screen ? 'tab current' : 'tab'}
-              aria-current={s.id === screen ? 'page' : undefined}
-              onClick={() => setScreen(s.id)}
+              className={tab.id === current ? 'tab current' : 'tab'}
+              aria-current={tab.id === current ? 'page' : undefined}
+              onClick={() => navigate(tab.route)}
             >
-              {s.label}
+              {tab.label}
             </button>
           ))}
         </nav>
       </header>
-      {screen === 'rounds' ? <RoundScreen audio={audio} /> : <FreePlay audio={audio} />}
+      <Screen route={route} audio={audio} navigate={navigate} />
     </>
   );
+}
+
+function Screen({ route, audio, navigate }: { readonly route: Route; readonly audio: LiveAudio; readonly navigate: Navigate }) {
+  switch (route.name) {
+    case 'home':
+    case 'calibrate':
+      return <Home navigate={navigate} />;
+    case 'pack':
+      return <PackScreen key={route.packId} packId={route.packId} navigate={navigate} />;
+    case 'level':
+      return (
+        <LevelScreen
+          key={`${route.packId}/${route.levelId}`}
+          audio={audio}
+          packId={route.packId}
+          levelId={route.levelId}
+          navigate={navigate}
+        />
+      );
+    case 'practice':
+      return (
+        <PracticeScreen
+          key={`${route.packId ?? ''}/${route.levelId ?? ''}`}
+          audio={audio}
+          packId={route.packId}
+          levelId={route.levelId}
+          navigate={navigate}
+        />
+      );
+    case 'freeplay':
+      return <FreePlay audio={audio} />;
+  }
 }

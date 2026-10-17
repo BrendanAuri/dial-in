@@ -16,6 +16,23 @@ export function findLevel(pack: Pack, levelId: string): Level | undefined {
   return packLevels(pack).find((level) => level.id === levelId);
 }
 
+/** 1-based position of a level in its pack, or 0 if it isn't there. */
+export function levelNumber(pack: Pack, levelId: string): number {
+  return packLevels(pack).findIndex((level) => level.id === levelId) + 1;
+}
+
+/** The level after `levelId` in play order, across chapters. */
+export function nextLevel(pack: Pack, levelId: string): Level | undefined {
+  const levels = packLevels(pack);
+  const index = levels.findIndex((level) => level.id === levelId);
+  return index < 0 ? undefined : levels[index + 1];
+}
+
+/** The level that introduces a control, if any. */
+export function levelIntroducing(pack: Pack, id: ParamId): Level | undefined {
+  return packLevels(pack).find((level) => level.newControls.includes(id));
+}
+
 /**
  * Controls unlocked in a level: the pack's base controls plus the new
  * controls of that level and every earlier one. In display order.

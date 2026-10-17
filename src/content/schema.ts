@@ -27,12 +27,26 @@ export interface ChoiceGenerator<V> {
 
 export type ParamGenerator<K extends ParamId> = K extends DiscreteParamId ? ChoiceGenerator<Patch[K]> : RangeGenerator;
 
+export type GeneratorParams = { readonly [K in ParamId]?: ParamGenerator<K> };
+
+/** A sound type (pluck, pad…): generator settings that override the level's, picked by weight. */
+export interface GeneratorTemplate {
+  readonly id: string;
+  readonly title: string;
+  readonly weight: number;
+  readonly params: GeneratorParams;
+  /** Overrides the level's note range, e.g. lower for basses. */
+  readonly noteRange?: readonly [string, string];
+}
+
 /**
  * How a level's targets are generated. Unlocked controls without an entry
- * use their full range (or every option).
+ * use their full range (or every option). With templates, one is picked
+ * per round and its settings override these.
  */
 export interface GeneratorSpec {
-  readonly params: { readonly [K in ParamId]?: ParamGenerator<K> };
+  readonly params: GeneratorParams;
+  readonly templates?: readonly GeneratorTemplate[];
 }
 
 export interface Level {
@@ -48,7 +62,9 @@ export interface Level {
   readonly generator: GeneratorSpec;
   /** Lowest and highest note, e.g. ['C3', 'C5']. */
   readonly noteRange: readonly [string, string];
+  /** Rounds per run; defaults to DEFAULT_ROUNDS. */
   readonly rounds?: number;
+  /** Average needed to pass; defaults to PASS_MARK. */
   readonly passMark?: number;
 }
 
@@ -59,6 +75,13 @@ export interface Chapter {
   readonly levels: readonly Level[];
 }
 
+export interface PackRequirements {
+  /** Packs to pass completely first. */
+  readonly packs?: readonly string[];
+  /** Engine modules the pack needs; it's hidden if the engine lacks one. */
+  readonly engineModules?: readonly string[];
+}
+
 export interface Pack {
   /** e.g. 'foundations', 'bass', 'bass.dubstep'. */
   readonly id: string;
@@ -66,6 +89,7 @@ export interface Pack {
   readonly description: string;
   /** Bump when content changes; part of every replay code. */
   readonly version: number;
+  readonly requires?: PackRequirements;
   /** Unlocked from the start of the pack. */
   readonly baseControls: readonly ParamId[];
   readonly chapters: readonly Chapter[];

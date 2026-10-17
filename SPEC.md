@@ -186,14 +186,30 @@ interface Level {
   rounds?: number;             // default 5
   passMark?: number;           // default 80
 }
+
+interface GeneratorSpec {
+  params: { [K in ParamId]?: ParamGenerator<K> };  // range (min, max, scale, offChance, offValue) or weighted choice
+  templates?: GeneratorTemplate[];                  // sound types: one is picked per round by weight
+}
+
+interface GeneratorTemplate {
+  id: string;
+  title: string;               // shown after submitting: "This was a pad."
+  weight: number;
+  params: { [K in ParamId]?: ParamGenerator<K> };  // override the level's
+  noteRange?: [string, string];                     // e.g. basses play lower
+}
 ```
+
+`presets` and `daily` are added to the schema when they're first used (Milestone 10 and Milestone 7).
 
 Rules:
 - A level's unlocked controls are the pack's `baseControls` plus the `newControls` of that level and every earlier level in the pack.
 - Progress is keyed by `packId/levelId` strings, never by position, so packs can gain, reorder or drop levels without breaking saves.
 - A level is passed when its average round score reaches its pass mark. Passing a level unlocks the next one; passing a chapter's last level unlocks the next chapter.
-- `packs.ts` validates every pack in a unit test: unique ids, known parameter ids, generator ranges inside parameter ranges, requirements that resolve.
-- A test fixture pack (not shipped) proves a second pack works with no code changes.
+- `game/validation.ts` checks every pack in a unit test: id formats and uniqueness (packs, chapters, levels, templates), known controls, each control introduced once, generators only for unlocked controls, ranges inside parameter ranges (log ranges above 0), valid choices and weights, valid note ranges, rounds and pass marks, and requirements that resolve. Another test checks every shipped level generates fair targets without running out of attempts.
+- Test fixture packs (`game/fixtures.ts`, not shipped) prove a second pack works with no code changes, including one that requires another.
+- Packs and levels shipped are listed in `content/index.ts`, which also names the templates Free Play's Randomise uses, so no code outside `content/` refers to a specific pack.
 
 ### 7.2 Foundations pack (v1)
 
@@ -272,7 +288,8 @@ Sort by impact (`weight × (1 − c)`). Show the top three on the result card; s
 
 - Endless rounds from any level you've passed, or **Mix** to draw each round from a random passed level. Reuses the levels' generator specs, so it needs no generator logic of its own.
 - Rounds update the per-parameter stats (§13) but not level progress.
-- Same round screen, scoring, hints and replay codes as Learn.
+- Same round screen, scoring, hints and replay codes as Learn. **Enter replay code** plays any round from a code here.
+- "Practise" next to a weak control on Home opens Practice on the level that introduces it, if that level is passed (otherwise the Mix).
 
 ## 10. Free Play
 
@@ -285,7 +302,7 @@ The synth as an instrument: no targets, no scores.
 - **Keyboard**: on-screen keyboard (one octave on phones, two from `KEYBOARD_TWO_OCTAVE_MIN_WIDTH`, octave shift, multi-touch). Desktop: A–K for white keys, W E T Y U for black keys, Z / X for octave down / up, key letters shown on the keys.
 - **Voices**: polyphonic up to `MAX_VOICES` (starting at 8) via `voiceManager.ts`, each note its own `buildVoice`; the oldest releasing voice is stolen first. A **Mono** switch uses last-note priority (glide comes later as an engine module).
 - **Live edits**: knob changes are heard on held notes straight away (see `VoiceHandle.update`).
-- **New** (init patch as a new, unsaved sound), **Randomise**, **Undo** and **Redo** (Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z; a knob drag is one step). Randomise will draw from the Foundations sound-type templates; until those exist (Milestone 6) it uses musical ranges in `RANDOMISE`.
+- **New** (init patch as a new, unsaved sound), **Randomise**, **Undo** and **Redo** (Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z; a knob drag is one step). Randomise picks one of the sound-type templates (pluck, pad, lead, bass, brass) named by `content/index.ts`.
 - **Session**: the working sound, its unsaved changes, voice mode and octave are kept across reloads, since mobile browsers often reload backgrounded tabs.
 - **Spectrum**: the same live analyser view as rounds (Milestone 8).
 - **Library**:
@@ -314,7 +331,10 @@ One new target per tier per day, identical for every player, with no backend.
 
 - Portrait-first, dark theme, large touch targets.
 - **Start screen** with a "Tap to start" button that resumes the AudioContext (mobile browsers require a user gesture). Show a tip that the phone's silent switch can mute audio, and recommend headphones: phone speakers can't reproduce low bass notes.
-- **Home**: today's daily challenge and streak, continue where you left off, packs with progress, Practice, Free Play, and "your weakest controls".
+- **Navigation**: tabs for Home, Practice and Free Play. Screens are hash routes (`#/`, `#/pack/<pack>`, `#/play/<pack>/<level>`, `#/practice[/<pack>/<level>]`, `#/free-play`), so the back button and reloads keep your place.
+- **Home**: today's daily challenge and streak (Milestone 7), continue where you left off (a level run in progress, else the next unpassed level), packs with progress and stars, and "your weakest controls" with a Practise button each.
+- **Pack screen**: chapters and levels, each showing its new controls and whether it's locked, new, in progress or passed (best average and stars).
+- **Level run**: the level's rounds one after another ("Round 2 of 5" with progress dots), then a summary: average, stars, pass or not, each round's score, and Next level / Play again / All levels.
 - **Knobs**: vertical drag, fine adjust with a modifier or two-finger drag, double-tap to reset, tap value to type a number; units shown (Hz, s, %, cents).
 - **Spectrum**: live `AnalyserNode` view while playing; on the result screen, overlay target vs mine.
 - Desktop shortcuts in rounds: Space = play target, M = play mine, B = A/B, Enter = submit (then next round). Tab is left for keyboard navigation. Free Play keyboard mapping in §10.
@@ -322,7 +342,7 @@ One new target per tier per day, identical for every player, with no backend.
 ## 13. Persistence
 
 All storage goes through `storage/storage.ts`. Two keys, each with a schema version and a migration stub:
-- **Progress**: per `packId/levelId`: best score, stars, passed. Per daily (`date/packId/tierId`): best score, submits used. Current and best streak. Plus total rounds and **average closeness per parameter**, used to show "your weakest controls" on the home screen.
+- **Progress** (`dialin.progress`): per `packId/levelId`: best run average, stars, passed (sticky once passed) and runs played. The level run in progress (level, pack version, round scores so far, current round's seed), so a reload continues the same round; starting another level replaces it, and a pack version change discards it. The last level played, total rounds, and **average closeness per parameter**, used to show "your weakest controls" on the home screen. Closeness comes from the **first** submit of each round, before the reveal table shows the answer, and only counts controls audible in the target. Per daily (`date/packId/tierId`, Milestone 7): best score, submits used. Current and best streak.
 - **Library**: saved sounds. A separate key, so a large library never has to be rewritten along with progress.
 
 Request persistent storage (`navigator.storage.persist()`) where supported. Browsers, Safari in particular, can clear data for sites that aren't installed and haven't been used for a while, so nudge users to install the PWA and offer a library export now and then.

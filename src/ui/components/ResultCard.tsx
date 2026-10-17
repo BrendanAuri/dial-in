@@ -15,6 +15,9 @@ interface ResultCardProps {
   readonly passMark: number;
   /** The sound has changed since it was submitted. */
   readonly changed: boolean;
+  /** The target's sound type ("Pad"), for levels built from templates. */
+  readonly soundType: string | null;
+  readonly nextLabel: string;
   readonly onRetry: () => void;
   readonly onNext: () => void;
 }
@@ -26,7 +29,7 @@ function meterClass(closeness: number): string {
 }
 
 /** Score, stars, the top tips, and every unlocked control compared with the target. */
-export function ResultCard({ result, target, best, passMark, changed, onRetry, onNext }: ResultCardProps) {
+export function ResultCard({ result, target, best, passMark, changed, soundType, nextLabel, onRetry, onNext }: ResultCardProps) {
   const { score, params, tips, mine } = result;
   const tipFor = new Map(tips.map((tip) => [tip.id, tip.text]));
 
@@ -61,6 +64,8 @@ export function ResultCard({ result, target, best, passMark, changed, onRetry, o
           {best > score.score && <div className="result-detail">Best on this round: {best}</div>}
         </div>
       </div>
+
+      {soundType && <p className="result-sound-type">This was a {soundType.toLowerCase()}.</p>}
 
       {changed && (
         <p className="notice" role="status">
@@ -124,7 +129,7 @@ export function ResultCard({ result, target, best, passMark, changed, onRetry, o
           Try again
         </button>
         <button type="button" className="button primary" onClick={onNext}>
-          Next round
+          {nextLabel}
         </button>
       </div>
     </section>

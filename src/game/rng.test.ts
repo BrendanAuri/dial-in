@@ -59,11 +59,22 @@ describe('randomPatch', () => {
     expect(randomPatch(createRng(7))).toEqual(randomPatch(createRng(7)));
   });
 
-  it('leaves LFO depth at zero when the LFO is off', () => {
+  it('draws within the template it picked', () => {
+    const template = {
+      id: 'only',
+      title: 'Only',
+      weight: 1,
+      params: {
+        'osc.wave': { kind: 'choice', options: ['square'] },
+        'filter.cutoff': { kind: 'range', min: 300, max: 400 },
+      },
+    } as const;
     const rng = createRng(3);
-    for (let i = 0; i < 200; i++) {
-      const patch = randomPatch(rng);
-      if (patch['lfo.target'] === 'off') expect(patch['lfo.depth']).toBe(0);
+    for (let i = 0; i < 50; i++) {
+      const patch = randomPatch(rng, [template]);
+      expect(patch['osc.wave']).toBe('square');
+      expect(patch['filter.cutoff']).toBeGreaterThanOrEqual(300);
+      expect(patch['filter.cutoff']).toBeLessThanOrEqual(400);
     }
   });
 });

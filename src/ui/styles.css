@@ -130,8 +130,292 @@ select {
 }
 
 .app-title {
+  padding: 0;
+  border: none;
+  background: none;
   font-size: 1.4rem;
   font-weight: 700;
+  cursor: pointer;
+}
+
+/* ── Home, packs and levels ────────────────────────────────────────────── */
+
+.screen-head {
+  padding: 8px 0 4px;
+}
+
+.screen-title {
+  margin: 4px 0;
+  font-size: 1.4rem;
+}
+
+.back-link {
+  min-height: var(--touch);
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.section-title {
+  margin: 20px 0 8px;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.card-kicker {
+  margin: 0 0 4px;
+  color: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.continue {
+  margin-top: 8px;
+}
+
+.continue-level {
+  margin: 0 0 4px;
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.pack-list {
+  display: grid;
+  gap: 10px;
+}
+
+.pack-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  text-align: left;
+  cursor: pointer;
+}
+
+.pack-card:hover {
+  border-color: var(--text-muted);
+}
+
+.pack-card.locked {
+  opacity: 0.6;
+}
+
+.pack-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.pack-description,
+.pack-meta {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.progress-bar {
+  display: block;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--surface-raised);
+}
+
+.progress-bar span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+.weak-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.weak-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 6px 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.weak-name {
+  font-weight: 600;
+}
+
+.weak-value {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.meter.wide {
+  width: 100%;
+}
+
+.weak-row .button {
+  grid-row: span 2;
+  grid-column: 2;
+  grid-row-start: 1;
+}
+
+.chapter .card-note {
+  margin-top: -4px;
+}
+
+.level-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Grid items default to min-width: auto, which lets one long line widen the row past the screen. */
+.level-list > li {
+  min-width: 0;
+}
+
+.level-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 60px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  text-align: left;
+  cursor: pointer;
+}
+
+.level-row:hover:not(:disabled) {
+  border-color: var(--text-muted);
+}
+
+.level-row.locked {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.level-row.passed .level-number {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.level-number {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--surface-raised);
+  font-weight: 700;
+}
+
+.level-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.level-title {
+  font-weight: 600;
+}
+
+.level-new {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.level-status {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: flex-end;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.level-stars {
+  color: #ffd166;
+  letter-spacing: 1px;
+}
+
+.star-empty {
+  color: var(--surface-raised);
+}
+
+.run-progress {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+}
+
+.run-dots {
+  display: inline-flex;
+  gap: 5px;
+}
+
+.dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--surface-raised);
+}
+
+.dot.done {
+  background: var(--accent);
+}
+
+.dot.current {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.round-scores {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 0 0 14px;
+  padding: 0;
+  list-style: none;
+  color: var(--text-muted);
+}
+
+.round-scores strong {
+  color: var(--text);
+}
+
+.practice-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.result-sound-type {
+  margin: 0 0 10px;
+  color: var(--accent);
+  font-weight: 600;
 }
 
 .tabs {
