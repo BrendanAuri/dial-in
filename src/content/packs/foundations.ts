@@ -55,6 +55,7 @@ export const FOUNDATIONS_PACK: Pack = {
   version: 1,
   baseControls: [],
   daily: [
+    { id: 'starter', title: 'Starter', levelId: 'brightness' },
     { id: 'basics', title: 'Basics', levelId: 'resonance' },
     { id: 'shapes', title: 'Shapes', levelId: 'plucks-and-sweeps' },
     { id: 'full', title: 'Full', levelId: 'sound-types' },

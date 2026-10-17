@@ -228,7 +228,7 @@ Genre-neutral. Note range C3–C5 unless stated.
 | | 9 | Air and grit | noise |
 | Putting it together | 10 | Sound types | everything, built from general templates (pluck, pad, lead, bass, brass) with random variation; bass templates use C2–C3 |
 
-Daily tiers: **Basics** (level 3: waveform, octave, cutoff, resonance), **Shapes** (level 6: adds the envelopes) and **Full** (level 10: everything).
+Daily tiers: **Starter** (level 2: waveform, octave, cutoff), **Basics** (level 3: adds resonance), **Shapes** (level 6: adds the envelopes) and **Full** (level 10: everything). Starter gives new players a daily after about ten rounds.
 
 ### 7.3 Expansion packs (after v1, outline only)
 
@@ -317,9 +317,9 @@ The synth as an instrument: no targets, no scores.
 
 One new target per tier per day, identical for every player, with no backend.
 
-- **Tiers** come from pack data (`Pack.daily`, §7.1), so packs can add their own daily tiers later. A tier is available once you've passed its level; Foundations offers Basics, Shapes and Full (§7.2).
+- **Tiers** come from pack data (`Pack.daily`, §7.1), so packs can add their own daily tiers later. A tier is available once you've passed its level; Foundations offers Starter, Basics, Shapes and Full (§7.2).
 - **Seed**: a 32-bit FNV-1a hash of `YYYY-MM-DD/packId/tierId`, using the player's local date, so everyone gets the same target on the same day and it rolls over at local midnight. The **daily number** counts from `DAILY_EPOCH` (2026-10-01 is Daily #1), e.g. "Daily #142".
-- **Attempts**: listen as often as you like; up to `DAILY_SUBMITS` submits (starting at 3), best one counts. No hints. Score and tips show after each submit, but the reveal table and the sound type only appear once you've used all submits, scored `DAILY_FINISH_SCORE` (97) or more, or pressed **Reveal answer**, so retries stay honest. Submit stays disabled until the sound changes, so a submit can't be wasted by accident. Submits used and the best score are saved after each submit, so a reload continues the daily.
+- **Attempts**: listen as often as you like; up to `DAILY_SUBMITS` submits (3, decided 2026-10-17: tips between submits teach, and the share line shows how many you needed), best one counts. No hints. Score and tips show after each submit, but the reveal table and the sound type only appear once you've used all submits, scored `DAILY_FINISH_SCORE` (97) or more, or pressed **Reveal answer**, so retries stay honest. Submit stays disabled until the sound changes, so a submit can't be wasted by accident. Submits used and the best score are saved after each submit, so a reload continues the daily.
 - **Streak**: consecutive days with at least one daily tier submitted **on its own date**. Whether a daily counts is fixed when it's first saved, so finishing it after midnight still counts for its date. Today not played yet doesn't break the streak until the day is over. Worked out from the saved daily results rather than stored separately. Current and best streak show on Home and on the daily screen.
 - **Share**: a spoiler-free text summary sent with the Web Share API where there is one, else copied to the clipboard (and selectable if copying is blocked), e.g. `Dial In daily #142 · Full · 94 ★★ · 2/3`. No patch values in it.
 - **Archive**: a month calendar from `DAILY_EPOCH` to today, marking days played on the day (●) and played later (○). Past dailies play with the same rules and are saved, but don't count towards streaks.
@@ -379,8 +379,6 @@ Build in order. Each milestone ends with the app running, `npm run test` and `np
 - Free Play: every control from day one, or only the ones you've learned (with a "show all" switch)? All is more useful as a synth; learned-only is less overwhelming for beginners.
 - Free Play polyphony: 8-voice poly with a Mono switch (as above), or mono only to keep v1 simpler?
 - Pack prerequisites: must the whole parent pack be passed, or only specific levels?
-- Daily challenge: 3 submits (as above), a single submit for more tension, or unlimited with only the first one counting for the streak and share?
-- Daily tiers before you've passed level 3: offer a beginner tier from level 1 so new players get a daily from day one?
 - Distribution: will packs always ship inside the app, or might they be downloaded or sold separately one day? v1 compiles them in; keeping them JSON-serialisable leaves both options open.
 - Audience: still a personal tool, or heading for a public release? That decides how much onboarding, accessibility and sharing polish v1 needs.
 - Audio score and modulation: add a phase-insensitive measure (e.g. compare the spread of loudness rather than frame by frame) so detune and LFO-rate differences aren't over-penalised? Matters more once the Bass Music pack leans on reese and wobble sounds.

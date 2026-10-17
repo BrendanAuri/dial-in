@@ -41,6 +41,16 @@ describe('shipped content', () => {
     expect(foundations && last ? unlockedControls(foundations, last.id) : []).toEqual(PARAM_IDS);
   });
 
+  it('opens the first Foundations daily after level 2', () => {
+    const foundations = PACKS.find((p) => p.id === 'foundations');
+    expect(foundations?.daily?.map((t) => [t.id, t.levelId])).toEqual([
+      ['starter', 'brightness'],
+      ['basics', 'resonance'],
+      ['shapes', 'plucks-and-sweeps'],
+      ['full', 'sound-types'],
+    ]);
+  });
+
   it('includes valid test fixtures', () => {
     expect(validatePacks([FIXTURE_PACK, SEQUEL_PACK])).toEqual([]);
   });
