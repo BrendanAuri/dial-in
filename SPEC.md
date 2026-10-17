@@ -35,7 +35,7 @@ Inspired by Syntorial. The core content is genre-neutral: it teaches synthesis f
 - **Web Audio API** directly for the synth (no Tone.js), so the engine stays small and fully under our control
 - **OfflineAudioContext** to render target and attempt to buffers for audio-based scoring
 - Audio feature extraction (RMS, spectral centroid, MFCC) written in-house in `scoring/audioFeatures.ts`, following **Meyda**'s definitions. Meyda itself is a dev dependency only: the tests check our numbers against it. Ours is about 5× faster (6 ms against 30 ms per render in Node), which matters on phones, and keeps Meyda out of the bundle.
-- **vite-plugin-pwa** for manifest, service worker and offline caching
+- **vite-plugin-pwa** (with its `workbox-window` peer) for manifest, service worker and offline caching. App icons are drawn by `scripts/make-icons.mjs` (`npm run icons`), with no image dependency.
 - **Vitest** for unit tests
 - **localStorage** for progress and the sound library, behind a small storage interface so it can move to IndexedDB if needed
 - Later: **Capacitor** to wrap as native iOS and Android apps
@@ -332,6 +332,7 @@ One new target per tier per day, identical for every player, with no backend.
 
 - Portrait-first, dark theme, large touch targets.
 - **Start screen** with a "Tap to start" button that resumes the AudioContext (mobile browsers require a user gesture). Show a tip that the phone's silent switch can mute audio, and recommend headphones: phone speakers can't reproduce low bass notes.
+- **PWA**: installable with a manifest (standalone, dark theme, 192/512 and maskable icons, Apple touch icon and iOS meta tags). Everything is precached, so after the first visit the app loads and plays rounds offline. A new version shows "A new version of Dial In is ready" with **Reload** / **Later**, so an update never interrupts a round. A first-time notice says it now works offline. Home shows an **Install Dial In** card (the browser's install prompt where there is one; Share → Add to Home Screen instructions on iPhone and iPad), dismissible for good. The first progress save asks for persistent storage.
 - **Navigation**: tabs for Home, Practice and Free Play. Screens are hash routes (`#/`, `#/pack/<pack>`, `#/play/<pack>/<level>`, `#/practice[/<pack>/<level>]`, `#/daily[/<date>]`, `#/free-play`), so the back button and reloads keep your place.
 - **Home**: continue where you left off (a level run in progress, else the next unpassed level), today's daily (number, streak, each tier's status, or which level unlocks it), packs with progress and stars, and "your weakest controls" with a Practise button each.
 - **Pack screen**: chapters and levels, each showing its new controls and whether it's locked, new, in progress or passed (best average and stars).
@@ -362,7 +363,7 @@ Build in order. Each milestone ends with the app running, `npm run test` and `np
 6. **Packs, levels and progress**: content schema, pack registry and validation, Foundations pack as data, test fixture pack, Home / pack / level select, unlocking, persistence, Practice mode, weakest-controls stat.
 7. **Daily challenge**: tiers from pack data, date-based seeds, submit limit, streaks, share text, archive. Tests: same date gives the same target; the next date gives a different one; streak rules across missed days and month/year boundaries.
 8. **Spectrum views**: live analyser and result overlay.
-9. **PWA and mobile polish**: manifest, icons, offline cache, iOS testing, deploy to static hosting.
+9. **PWA and mobile polish**: manifest, icons, offline cache, update prompt, install card, deploy configs (GitHub Pages workflow, `netlify.toml`; `DIAL_IN_BASE` for sub-paths), and an iOS checklist ([docs/ios-testing.md](docs/ios-testing.md)) to run on a real device after deploying.
 10. **First expansion pack** (probably Bass Music): add the engine modules it needs (with neutral defaults), then its chapters, levels, presets and daily tiers. Proves the pack system end to end.
 11. **Stretch**: sample-based targets (audio-only scoring), Web MIDI keyboard input, Capacitor native builds (with daily reminder notifications), and anything promoted from the idea backlog (§17).
 

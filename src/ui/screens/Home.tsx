@@ -14,6 +14,7 @@ import {
   weakestControls,
   type WeakControl,
 } from '../../game/progress';
+import { InstallCard } from '../components/InstallCard';
 import { progressStore, useProgress } from '../progress';
 import type { Navigate } from '../router';
 
@@ -136,6 +137,8 @@ export function Home({ navigate }: HomeProps) {
           )}
         </section>
       )}
+
+      <InstallCard />
 
       <h2 className="section-title">Packs</h2>
       <div className="pack-list">

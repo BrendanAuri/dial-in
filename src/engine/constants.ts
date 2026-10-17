@@ -36,6 +36,8 @@ export const UNDO_COALESCE_MS = 600;
 export const SESSION_SAVE_DELAY_MS = 300;
 /** How long status messages stay on screen, in ms. */
 export const TOAST_MS = 2500;
+/** How long the "works offline" notice stays up, in ms. */
+export const OFFLINE_NOTICE_MS = 4000;
 
 // ── Rounds ───────────────────────────────────────────────────────────────
 /** Time constant of the A/B crossfade when switching between target and yours, in seconds. */

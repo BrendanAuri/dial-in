@@ -1660,3 +1660,30 @@ select {
   margin-left: 8px;
   background: var(--mine);
 }
+
+/* ── App notices (updates, offline) and install ────────────────────────── */
+
+.app-notice {
+  position: fixed;
+  top: calc(8px + env(safe-area-inset-top));
+  left: 50%;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 12px;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  padding: 10px 14px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  box-shadow: 0 6px 24px rgb(0 0 0 / 40%);
+  transform: translateX(-50%);
+}
+
+.install-card {
+  margin-top: 12px;
+  border-color: var(--border);
+}

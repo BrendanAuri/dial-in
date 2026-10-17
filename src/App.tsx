@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { startAudio, type LiveAudio } from './ui/audio';
+import { UpdatePrompt } from './ui/components/UpdatePrompt';
 import { useRoute, type Navigate, type Route } from './ui/router';
 import { Calibration } from './ui/screens/Calibration';
 import { DailyScreen } from './ui/screens/DailyScreen';
@@ -26,8 +27,12 @@ function tabOf(route: Route): Tab {
 
 export function App() {
   const [route, navigate] = useRoute();
-  if (route.name === 'calibrate') return <Calibration />;
-  return <MainApp route={route} navigate={navigate} />;
+  return (
+    <>
+      {route.name === 'calibrate' ? <Calibration /> : <MainApp route={route} navigate={navigate} />}
+      <UpdatePrompt />
+    </>
+  );
 }
 
 function MainApp({ route, navigate }: { readonly route: Route; readonly navigate: Navigate }) {

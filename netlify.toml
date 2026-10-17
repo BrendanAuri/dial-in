@@ -1,0 +1,19 @@
+# Netlify: connect the repo, or drag the built dist/ folder onto app.netlify.com/drop.
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# The service worker must always be checked for updates.
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+# Built assets have content hashes in their names, so they never change.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
