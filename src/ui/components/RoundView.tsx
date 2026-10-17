@@ -5,7 +5,7 @@ import { DEFAULT_HOLD_TIME, HINT_COST, LIVE_START_DELAY } from '../../engine/con
 import { midiToNoteName } from '../../engine/notes';
 import { PARAM_IDS, type ParamId, type Patch } from '../../engine/params';
 import { patchesEqual, setParam } from '../../engine/patch';
-import { measureAudio } from '../../game/measureAudio';
+import { measureAudio, type PairSpectra } from '../../game/measureAudio';
 import { passMarkOf } from '../../game/progress';
 import { formatReplayCode } from '../../game/replayCode';
 import { generateRound } from '../../game/targetGenerator';
@@ -16,6 +16,7 @@ import { scoreRound, type RoundResult } from '../../scoring/scoreRound';
 import type { LiveAudio } from '../audio';
 import { isButtonLike, isTypingTarget } from '../hooks';
 import { ResultCard } from './ResultCard';
+import { SpectrumStrip } from './SpectrumStrip';
 import { SynthPanel } from './SynthPanel';
 
 /**
@@ -69,6 +70,7 @@ export function RoundView(props: RoundViewProps) {
   const round = useMemo(() => generateRound(pack, level, seed), [pack, level, seed]);
   const [mine, setMine] = useState<Patch>(() => ({ ...round.start }));
   const [result, setResult] = useState<RoundResult | null>(null);
+  const [spectra, setSpectra] = useState<PairSpectra | null>(null);
   const [best, setBest] = useState<number | null>(saved.best);
   const [submits, setSubmits] = useState(saved.submits);
   const [gaveUp, setGaveUp] = useState(saved.finished);
@@ -144,14 +146,14 @@ export function RoundView(props: RoundViewProps) {
     const submitted = mine;
     const token = ++submitToken.current;
     setScoring(true);
-    void measureAudio(round.target, submitted, round.note, DEFAULT_HOLD_TIME).then((audioScore) => {
+    void measureAudio(round.target, submitted, round.note, DEFAULT_HOLD_TIME).then((measured) => {
       if (submitToken.current !== token) return;
       const scored = scoreRound({
         target: round.target,
         mine: submitted,
         unlocked: round.unlocked,
         context,
-        audio: audioScore,
+        audio: measured?.score ?? null,
         hintsUsed,
         passMark,
       });
@@ -159,6 +161,7 @@ export function RoundView(props: RoundViewProps) {
       const top = Math.max(best ?? 0, scored.score.score);
       setScoring(false);
       setResult(scored);
+      setSpectra(measured?.spectra ?? null);
       setSubmits(count);
       setBest(top);
       setHint(null);
@@ -246,6 +249,7 @@ export function RoundView(props: RoundViewProps) {
           changed={changedSinceSubmit}
           soundType={soundType}
           showReveal={finished}
+          spectra={spectra}
           attemptsNote={
             rules && !finished
               ? `${submits} of ${rules.maxSubmits} submits used. The answer appears when you've used them all or score ${rules.finishScore}+.`
@@ -286,40 +290,50 @@ export function RoundView(props: RoundViewProps) {
       <p className="hint">Space plays the target · M plays yours · B for A/B · Enter to submit</p>
 
       <div className="dock round-dock">
-        <button
-          type="button"
-          className={playback.playing === 'target' ? 'button primary play-side playing' : 'button primary play-side'}
-          onClick={playTarget}
-        >
-          ▶ Target
-        </button>
-        <button
-          type="button"
-          className={playback.playing === 'mine' ? 'button primary play-side playing' : 'button primary play-side'}
-          onClick={playMine}
-        >
-          ▶ Mine
-        </button>
-        <button
-          type="button"
-          className={playback.playing === 'ab' ? 'button ab on' : 'button ab'}
-          aria-pressed={playback.playing === 'ab'}
-          onClick={playAB}
-          title="Play both in sync; press again to switch between them"
-        >
-          A/B
-          {playback.playing === 'ab' && <span className="ab-hearing">{hearingLabel}</span>}
-        </button>
-        <button
-          type="button"
-          className="button submit-button"
-          onClick={showNext ? next : submit}
-          disabled={!showNext && !canSubmit}
-          aria-busy={scoring}
-        >
-          {scoring ? 'Scoring…' : showNext ? 'Next' : rules && finished ? 'Finished' : 'Submit'}
-          {rules && !finished && !scoring && <span className="button-sub">{submitsLeft} left</span>}
-        </button>
+        <SpectrumStrip
+          analyser={audio.analyser}
+          colorVar={playback.hearing === 'mine' ? '--mine' : '--target'}
+          label={playback.hearing === 'mine' ? 'Live spectrum of your sound' : 'Live spectrum of the target'}
+          maskedMessage={
+            rules && !finished && playback.hearing === 'target' ? 'Target spectrum hidden until you finish' : null
+          }
+        />
+        <div className="round-dock-buttons">
+          <button
+            type="button"
+            className={playback.playing === 'target' ? 'button primary play-side playing' : 'button primary play-side'}
+            onClick={playTarget}
+          >
+            ▶ Target
+          </button>
+          <button
+            type="button"
+            className={playback.playing === 'mine' ? 'button primary play-side playing' : 'button primary play-side'}
+            onClick={playMine}
+          >
+            ▶ Mine
+          </button>
+          <button
+            type="button"
+            className={playback.playing === 'ab' ? 'button ab on' : 'button ab'}
+            aria-pressed={playback.playing === 'ab'}
+            onClick={playAB}
+            title="Play both in sync; press again to switch between them"
+          >
+            A/B
+            {playback.playing === 'ab' && <span className="ab-hearing">{hearingLabel}</span>}
+          </button>
+          <button
+            type="button"
+            className="button submit-button"
+            onClick={showNext ? next : submit}
+            disabled={!showNext && !canSubmit}
+            aria-busy={scoring}
+          >
+            {scoring ? 'Scoring…' : showNext ? 'Next' : rules && finished ? 'Finished' : 'Submit'}
+            {rules && !finished && !scoring && <span className="button-sub">{submitsLeft} left</span>}
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -44,7 +44,7 @@ export function Calibration() {
     setRows([]);
     const context = { note: NOTE, holdTime: DEFAULT_HOLD_TIME };
     for (const testCase of CALIBRATION_CASES) {
-      const audio = await measureAudio(testCase.a, testCase.b, NOTE, DEFAULT_HOLD_TIME);
+      const audio = (await measureAudio(testCase.a, testCase.b, NOTE, DEFAULT_HOLD_TIME))?.score ?? null;
       if (runToken.current !== token) return;
       const paramScore = scoreParams(testCase.a, testCase.b, PARAM_IDS, context).score;
       const final = finalScore(paramScore, audio?.score ?? null, 0, PASS_MARK).score;

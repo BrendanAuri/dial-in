@@ -187,6 +187,31 @@ function analyseFrame(frame: Float32Array, t: Tables, re: Float64Array, im: Floa
   return { rms: Math.sqrt(energy / t.size), centroidBins: weightedSum / ampSum, mfcc };
 }
 
+/**
+ * Mean power of each FFT bin (0 … FEATURE_BUFFER_SIZE / 2 − 1) across every
+ * frame, using the same window and hop as the features. For the result
+ * overlay's spectrum.
+ */
+export function averagePowerSpectrum(samples: Float32Array, sampleRate: number): Float64Array {
+  const t = getTables(FEATURE_BUFFER_SIZE, sampleRate);
+  const re = new Float64Array(t.size);
+  const im = new Float64Array(t.size);
+  const bins = t.size / 2;
+  const sum = new Float64Array(bins);
+  let frames = 0;
+  for (let start = 0; start + t.size <= samples.length; start += FEATURE_HOP_SIZE) {
+    for (let i = 0; i < t.size; i++) {
+      re[i] = (samples[start + i] ?? 0) * (t.window[i] ?? 0);
+      im[i] = 0;
+    }
+    fft(re, im, t);
+    for (let k = 0; k < bins; k++) sum[k] = (sum[k] ?? 0) + (re[k] ?? 0) ** 2 + (im[k] ?? 0) ** 2;
+    frames++;
+  }
+  if (frames > 0) for (let k = 0; k < bins; k++) sum[k] = (sum[k] ?? 0) / frames;
+  return sum;
+}
+
 /** Features of a single FEATURE_BUFFER_SIZE frame (exposed for tests). */
 export function frameFeatures(frame: Float32Array, sampleRate: number): FrameFeatures {
   const t = getTables(FEATURE_BUFFER_SIZE, sampleRate);

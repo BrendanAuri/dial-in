@@ -3,6 +3,7 @@ import { midiToNoteName } from '../../engine/notes';
 import type { VoiceMode } from '../../engine/voiceManager';
 import { lowestNoteForOctave } from '../keyboardMap';
 import { Keyboard } from './Keyboard';
+import { SpectrumStrip } from './SpectrumStrip';
 import { Selector } from './Selector';
 
 const MODE_OPTIONS = [
@@ -11,6 +12,7 @@ const MODE_OPTIONS = [
 ] as const;
 
 interface PlayDockProps {
+  readonly analyser: AnalyserNode;
   readonly lastNote: number;
   readonly hold: boolean;
   readonly mode: VoiceMode;
@@ -33,6 +35,7 @@ export function PlayDock(props: PlayDockProps) {
   const noteName = midiToNoteName(lastNote);
   return (
     <div className="dock">
+      <SpectrumStrip analyser={props.analyser} colorVar="--target" />
       <div className="dock-controls">
         <button
           type="button"

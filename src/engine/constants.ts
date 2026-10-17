@@ -150,6 +150,22 @@ export const AUDIO_SCORE_WEIGHT = 0.3;
 export const AUDIO_MATCH_SCORE = 95;
 export const AUDIO_MATCH_FLOOR = 90;
 
+// ── Spectrum views ───────────────────────────────────────────────────────
+/** Live analyser: FFT size, smoothing between frames, and the dB range it reports. */
+export const ANALYSER_FFT_SIZE = 4096;
+export const ANALYSER_SMOOTHING = 0.75;
+export const ANALYSER_MIN_DB = -100;
+export const ANALYSER_MAX_DB = -20;
+/** Frequency range drawn, in Hz. */
+export const SPECTRUM_MIN_HZ = 30;
+export const SPECTRUM_MAX_HZ = 16000;
+/** Log-spaced bands in the result overlay. */
+export const OVERLAY_BANDS = 96;
+/** Vertical range of the result overlay, below its loudest band, in dB. */
+export const OVERLAY_RANGE_DB = 60;
+/** Space above the loudest band in the overlay, in dB. */
+export const OVERLAY_HEADROOM_DB = 4;
+
 // ── Audibility (what can't be heard in the target isn't scored) ──────────
 /** Resonance can't be heard with the cutoff at or above this, in Hz. */
 export const RESONANCE_AUDIBLE_MAX_CUTOFF = 12000;

@@ -12,10 +12,15 @@ function compact(value: number): string {
   return value.toFixed(2);
 }
 
+/** "440 Hz", "1.25 kHz". */
+export function formatHz(hz: number): string {
+  return hz >= HZ_PER_KHZ ? `${compact(hz / HZ_PER_KHZ)} kHz` : `${compact(hz)} Hz`;
+}
+
 export function formatValue(def: ContinuousParamDef, value: number): string {
   switch (def.unit) {
     case 'Hz':
-      return value >= HZ_PER_KHZ ? `${compact(value / HZ_PER_KHZ)} kHz` : `${compact(value)} Hz`;
+      return formatHz(value);
     case 's':
       return value >= 1 ? `${value.toFixed(2)} s` : `${compact(value * MS_PER_SECOND)} ms`;
     case '%':

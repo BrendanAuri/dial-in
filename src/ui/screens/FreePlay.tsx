@@ -518,6 +518,7 @@ export function FreePlay({ audio }: FreePlayProps) {
       </p>
 
       <PlayDock
+        analyser={audio.analyser}
         lastNote={lastNote}
         hold={hold}
         mode={mode}

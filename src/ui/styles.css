@@ -10,6 +10,9 @@
   --accent-strong: #2fb3a7;
   --accent-text: #0b1a19;
   --danger: #ff7a7a;
+  /* Spectrum colours: the target and your sound. */
+  --target: #4fd1c5;
+  --mine: #f6ad55;
   --radius: 12px;
   --touch: 44px;
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -983,12 +986,12 @@ select {
   word-break: break-all;
 }
 
-.round-dock {
+.round-dock-buttons {
   display: flex;
   gap: 8px;
 }
 
-.round-dock .button {
+.round-dock-buttons .button {
   flex: 1 1 0;
   min-width: 0;
   padding: 0 4px;
@@ -1528,4 +1531,132 @@ select {
   background: var(--accent);
   color: var(--accent-text);
   font-weight: 600;
+}
+
+/* ── Spectrum views ────────────────────────────────────────────────────── */
+
+.spectrum-strip {
+  position: relative;
+  margin-bottom: 8px;
+}
+
+.live-spectrum {
+  display: block;
+  width: 100%;
+  height: 56px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+@media (min-width: 640px) {
+  .live-spectrum {
+    height: 80px;
+  }
+}
+
+.spectrum-toggle {
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.spectrum-toggle.hide {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 32px;
+  height: 32px;
+  font-size: 1.1rem;
+}
+
+.spectrum-toggle.show {
+  display: block;
+  min-height: 28px;
+  margin: -4px 0 4px;
+  padding: 0;
+  font-size: 0.8rem;
+}
+
+.spectrum-overlay {
+  margin: 0 0 14px;
+}
+
+.overlay-plot {
+  position: relative;
+  padding-bottom: 16px;
+}
+
+.spectrum-overlay svg {
+  display: block;
+  width: 100%;
+  height: 120px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+@media (min-width: 640px) {
+  .spectrum-overlay svg {
+    height: 150px;
+  }
+}
+
+.overlay-grid {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.overlay-label {
+  position: absolute;
+  bottom: 0;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  transform: translateX(-50%);
+}
+
+.overlay-line {
+  fill: none;
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.overlay-target {
+  stroke: var(--target);
+}
+
+.overlay-mine {
+  stroke: var(--mine);
+}
+
+.spectrum-overlay figcaption {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 6px;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.overlay-key {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.swatch {
+  display: inline-block;
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
+}
+
+.swatch.target {
+  background: var(--target);
+}
+
+.swatch.mine {
+  margin-left: 8px;
+  background: var(--mine);
 }

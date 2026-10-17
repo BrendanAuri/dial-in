@@ -2,7 +2,9 @@ import { Fragment } from 'react';
 import { AUDIO_MATCH_FLOOR, RESULT_TIPS, STAR_SCORES, TIP_CLOSENESS } from '../../engine/constants';
 import { controlName, type Patch } from '../../engine/params';
 import type { RoundResult } from '../../scoring/scoreRound';
+import type { PairSpectra } from '../../game/measureAudio';
 import { formatParam } from '../format';
+import { SpectrumOverlay } from './SpectrumOverlay';
 
 /** Closeness at or above which a meter shows as "fair" rather than "poor". */
 const FAIR_CLOSENESS = 0.4;
@@ -17,8 +19,10 @@ interface ResultCardProps {
   readonly changed: boolean;
   /** The target's sound type ("Pad"), for levels built from templates. */
   readonly soundType: string | null;
-  /** Show the target's values and sound type (challenge rounds hide them until finished). */
+  /** Show the target's values, sound type and spectrum (challenge rounds hide them until finished). */
   readonly showReveal: boolean;
+  /** Target and yours, from the offline renders; null if they couldn't be rendered. */
+  readonly spectra: PairSpectra | null;
   /** e.g. "1 of 3 submits used…", or null. */
   readonly attemptsNote: string | null;
   /** Null hides the button. */
@@ -37,7 +41,7 @@ function meterClass(closeness: number): string {
 
 /** Score, stars, the top tips, and every unlocked control compared with the target. */
 export function ResultCard(props: ResultCardProps) {
-  const { result, target, best, passMark, changed, soundType, showReveal, attemptsNote, nextLabel } = props;
+  const { result, target, best, passMark, changed, soundType, showReveal, attemptsNote, nextLabel, spectra } = props;
   const { score, params, tips, mine } = result;
   const tipFor = new Map(tips.map((tip) => [tip.id, tip.text]));
 
@@ -92,6 +96,8 @@ export function ResultCard(props: ResultCardProps) {
           ))}
         </ol>
       )}
+
+      {showReveal && spectra && <SpectrumOverlay spectra={spectra} />}
 
       {showReveal && (
         <table className="reveal-table">

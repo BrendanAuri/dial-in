@@ -131,7 +131,7 @@ Implementation notes:
 
 1. Generate a target patch from the level's generator spec, using only the level's unlocked controls; locked controls use the level's fixed values and are shown greyed out (a module with every control locked shows only its title).
 2. Player can **Play target**, **Play mine**, and **A/B** (same note, same length). A/B plays both in sync starting on the target; pressing it again while it plays flips between them with a short crossfade. Knob changes are heard straight away on your sounding note.
-3. **Submit** → score, top three feedback tips, and a reveal table (target vs mine for every unlocked control, with a closeness meter, each control's tip, and a reason for any control that isn't scored) with both spectra overlaid (Milestone 8). Changing the sound after submitting shows a note and turns Next back into Submit, so it can be rescored.
+3. **Submit** → score, top three feedback tips, and a reveal table (target vs mine for every unlocked control, with a closeness meter, each control's tip, and a reason for any control that isn't scored) with both spectra overlaid (see Spectrum in §12). Changing the sound after submitting shows a note and turns Next back into Submit, so it can be rescored.
 4. **Retry** the same target, keeping your knobs (best score kept), or **Next**.
 5. **Hint** (optional): costs 10 points; names the control that's furthest off and which direction to move it, without the value.
 
@@ -304,7 +304,7 @@ The synth as an instrument: no targets, no scores.
 - **Live edits**: knob changes are heard on held notes straight away (see `VoiceHandle.update`).
 - **New** (init patch as a new, unsaved sound), **Randomise**, **Undo** and **Redo** (Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z; a knob drag is one step). Randomise picks one of the sound-type templates (pluck, pad, lead, bass, brass) named by `content/index.ts`.
 - **Session**: the working sound, its unsaved changes, voice mode and octave are kept across reloads, since mobile browsers often reload backgrounded tabs.
-- **Spectrum**: the same live analyser view as rounds (Milestone 8).
+- **Spectrum**: the same live analyser strip as rounds, at the top of the dock.
 - **Library**:
   - Save, Save as, rename, duplicate, delete (with confirmation), favourite, tags, search, sort by recent or name.
   - Each saved sound: `{ id, name, tags, favourite, createdAt, updatedAt, source, patch }`, where `source` is `user` or `preset:<packId>`.
@@ -337,7 +337,9 @@ One new target per tier per day, identical for every player, with no backend.
 - **Pack screen**: chapters and levels, each showing its new controls and whether it's locked, new, in progress or passed (best average and stars).
 - **Level run**: the level's rounds one after another ("Round 2 of 5" with progress dots), then a summary: average, stars, pass or not, each round's score, and Next level / Play again / All levels.
 - **Knobs**: vertical drag, fine adjust with a modifier or two-finger drag, double-tap to reset, tap value to type a number; units shown (Hz, s, %, cents).
-- **Spectrum**: live `AnalyserNode` view while playing; on the result screen, overlay target vs mine.
+- **Spectrum**:
+  - **Live**: an `AnalyserNode` tapping the master bus (FFT 4096) feeds a canvas strip at the top of the sticky dock in rounds and Free Play. It shows 30 Hz–16 kHz on a log axis with 100 / 1k / 10k grid lines, coloured by what you hear (`--target` teal, `--mine` orange). A × hides it and "Show spectrum" brings it back; the choice is remembered per browser. In an unfinished daily the target's spectrum is masked ("Target spectrum hidden until you finish") so the daily stays an ear test; yours still shows.
+  - **Result overlay**: the offline renders made at Submit also give each sound's average spectrum, volume-matched like the audio score, in 96 log-spaced bands (interpolated in dB below one FFT bin, so curves stay smooth). Target and yours are drawn on one chart with a key, and a caption compares their spectral centres ("Spectral centre: target 894 Hz, yours 3.62 kHz, so yours is brighter."), which is how feedback ties to the spectrum. In the daily it appears with the reveal table, once you've finished.
 - Desktop shortcuts in rounds: Space = play target, M = play mine, B = A/B, Enter = submit (then next round). Tab is left for keyboard navigation. Free Play keyboard mapping in §10.
 
 ## 13. Persistence

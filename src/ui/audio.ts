@@ -1,10 +1,18 @@
 /** Live audio setup. Must be started from a user gesture (mobile browsers require it). */
+import {
+  ANALYSER_FFT_SIZE,
+  ANALYSER_MAX_DB,
+  ANALYSER_MIN_DB,
+  ANALYSER_SMOOTHING,
+} from '../engine/constants';
 import { createOutputBus } from '../engine/output';
 
 export interface LiveAudio {
   readonly ctx: AudioContext;
   /** Master bus input that live voices connect to. */
   readonly output: AudioNode;
+  /** Taps the master bus for the live spectrum view. */
+  readonly analyser: AnalyserNode;
 }
 
 interface AudioSessionNavigator {
@@ -23,6 +31,16 @@ export async function startAudio(): Promise<LiveAudio> {
 
   context ??= new AudioContext({ latencyHint: 'interactive' });
   await context.resume();
-  live ??= { ctx: context, output: createOutputBus(context, { limiter: true }) };
+  if (!live) {
+    const output = createOutputBus(context, { limiter: true });
+    const analyser = new AnalyserNode(context, {
+      fftSize: ANALYSER_FFT_SIZE,
+      smoothingTimeConstant: ANALYSER_SMOOTHING,
+      minDecibels: ANALYSER_MIN_DB,
+      maxDecibels: ANALYSER_MAX_DB,
+    });
+    output.connect(analyser);
+    live = { ctx: context, output, analyser };
+  }
   return live;
 }
