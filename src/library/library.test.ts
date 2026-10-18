@@ -18,6 +18,9 @@ import {
   soundToFile,
   toggleFavourite,
   updateSound,
+  syncPresets,
+  userSounds,
+  type PresetSound,
   type Library,
   type SavedSound,
 } from './library';
@@ -143,5 +146,35 @@ describe('files', () => {
     expect(result.added).toBe(1);
     expect(result.skipped).toBe(1);
     expect(sound(result.library, 'id-1')).toMatchObject({ name: 'airy pad (v2)', source: 'user' });
+  });
+});
+
+describe('factory presets', () => {
+  const reese: PresetSound = { id: 'bass/reese', source: 'preset:bass', name: 'Reese', tags: ['bass'], patch: bass };
+  const stab: PresetSound = { id: 'bass/stab', source: 'preset:bass', name: 'Stab', tags: ['bass'], patch: pad };
+
+  it('adds shipped presets alongside your own sounds, read-only', () => {
+    const library = syncPresets(sample(), [reese, stab]);
+    expect(library.sounds.map((s) => s.id)).toEqual(['a', 'b', 'bass/reese', 'bass/stab']);
+    expect(sound(library, 'bass/reese').source).toBe('preset:bass');
+    expect(updateSound(library, 'bass/reese', { name: 'Mine' }, 1)).toBe(library);
+    expect(userSounds(library).map((s) => s.id)).toEqual(['a', 'b']);
+  });
+
+  it('returns the same library when nothing changed', () => {
+    const library = syncPresets(sample(), [reese]);
+    expect(syncPresets(library, [reese])).toBe(library);
+  });
+
+  it('refreshes changed presets, keeps favourites and drops ones no longer shipped', () => {
+    const library = toggleFavourite(syncPresets(sample(), [reese, stab]), 'bass/reese');
+    const changed = syncPresets(library, [{ ...reese, name: 'Reese 2', patch: pad }]);
+    expect(changed.sounds.map((s) => s.id)).toEqual(['a', 'b', 'bass/reese']);
+    expect(sound(changed, 'bass/reese')).toMatchObject({ name: 'Reese 2', favourite: true, patch: pad });
+  });
+
+  it('leaves presets out of library exports, since they come with the app', () => {
+    const parsed = parseSoundFile(libraryToFile(syncPresets(sample(), [reese]), 0), 0);
+    expect(parsed?.sounds.map((s) => s.id)).toEqual(['a', 'b']);
   });
 });

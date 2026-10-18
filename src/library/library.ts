@@ -142,6 +142,84 @@ export function markExported(library: Library): Library {
   return { ...library, savesSinceExport: 0 };
 }
 
+// ── Factory presets ──────────────────────────────────────────────────────
+
+/** A pack's factory sound, ready to go in the library. */
+export interface PresetSound {
+  readonly id: string;
+  readonly source: `preset:${string}`;
+  readonly name: string;
+  readonly tags: readonly string[];
+  readonly patch: Readonly<Patch>;
+}
+
+function presetToSound(preset: PresetSound, favourite: boolean): SavedSound {
+  return {
+    id: preset.id,
+    name: preset.name,
+    tags: [...preset.tags],
+    favourite,
+    // Presets have no real dates; 0 sorts them after your own sounds under Recent.
+    createdAt: 0,
+    updatedAt: 0,
+    source: preset.source,
+    patch: { ...preset.patch },
+  };
+}
+
+function sameSound(a: SavedSound, b: SavedSound): boolean {
+  return (
+    a.name === b.name &&
+    a.source === b.source &&
+    a.tags.length === b.tags.length &&
+    a.tags.every((tag, i) => tag === b.tags[i]) &&
+    a.createdAt === b.createdAt &&
+    patchesEqual(a.patch, b.patch)
+  );
+}
+
+/**
+ * Make the library's factory sounds match the ones the app ships: add new
+ * ones, refresh changed ones (keeping favourites) and drop ones no longer
+ * shipped. Your own sounds are left alone. Returns `library` itself when
+ * nothing changed.
+ */
+export function syncPresets(library: Library, presets: readonly PresetSound[]): Library {
+  const shipped = new Map(presets.map((preset) => [preset.id, preset]));
+  const present = new Set<string>();
+  let changed = false;
+  const sounds: SavedSound[] = [];
+  for (const sound of library.sounds) {
+    if (sound.source === 'user') {
+      sounds.push(sound);
+      continue;
+    }
+    const preset = shipped.get(sound.id);
+    if (!preset || present.has(sound.id)) {
+      changed = true;
+      continue;
+    }
+    present.add(sound.id);
+    const fresh = presetToSound(preset, sound.favourite);
+    if (sameSound(sound, fresh)) sounds.push(sound);
+    else {
+      sounds.push(fresh);
+      changed = true;
+    }
+  }
+  for (const preset of presets) {
+    if (present.has(preset.id)) continue;
+    sounds.push(presetToSound(preset, false));
+    changed = true;
+  }
+  return changed ? { ...library, sounds } : library;
+}
+
+/** Your own sounds, without the factory presets. */
+export function userSounds(library: Library): SavedSound[] {
+  return library.sounds.filter((sound) => !isReadOnly(sound));
+}
+
 // ── Searching ────────────────────────────────────────────────────────────
 
 export type SortOrder = 'recent' | 'name';
@@ -217,13 +295,14 @@ export function deserialiseSound(data: unknown, fallbackNow: number): SavedSound
 export const LIBRARY_FILE_KIND = 'dial-in/library';
 export const SOUND_FILE_KIND = 'dial-in/sound';
 
+/** The library as a file, without the factory presets: those come with the app. */
 export function libraryToFile(library: Library, now: number): string {
   return JSON.stringify(
     {
       kind: LIBRARY_FILE_KIND,
       v: LIBRARY_SCHEMA_VERSION,
       exportedAt: new Date(now).toISOString(),
-      sounds: library.sounds.map(serialiseSound),
+      sounds: userSounds(library).map(serialiseSound),
     },
     null,
     2,

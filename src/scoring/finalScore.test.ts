@@ -49,7 +49,7 @@ describe('scoreRound', () => {
   it('combines the score, audio, tips and the submitted sound', () => {
     const target = { ...DEFAULT_PATCH, 'filter.cutoff': 1000 };
     const mine = { ...DEFAULT_PATCH, 'filter.cutoff': 250 };
-    const audio = { score: 40, parts: { loudness: 100, brightness: 0, timbre: 20 }, distances: { loudnessDb: 0, brightnessOctaves: 1, timbre: 40 } };
+    const audio = { score: 40, parts: { loudness: 100, brightness: 0, timbre: 20, lowEnd: null }, distances: { loudnessDb: 0, brightnessOctaves: 1, timbre: 40, lowEndDb: null } };
     const result = scoreRound({
       target,
       mine,

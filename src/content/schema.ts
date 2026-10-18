@@ -84,6 +84,16 @@ export interface DailyTier {
   readonly levelId: string;
 }
 
+/** A factory sound a pack adds to the Free Play library. */
+export interface Preset {
+  /** Unique within the pack. */
+  readonly id: string;
+  readonly name: string;
+  readonly tags: readonly string[];
+  /** Settings that differ from the defaults. */
+  readonly patch: Partial<Patch>;
+}
+
 export interface PackRequirements {
   /** Packs to pass completely first. */
   readonly packs?: readonly string[];
@@ -104,4 +114,6 @@ export interface Pack {
   readonly chapters: readonly Chapter[];
   /** Daily challenge tiers this pack offers. */
   readonly daily?: readonly DailyTier[];
+  /** Factory sounds added to the Free Play library (read-only there). */
+  readonly presets?: readonly Preset[];
 }

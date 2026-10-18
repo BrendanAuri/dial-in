@@ -2,7 +2,7 @@
  * Every tunable number in the app lives here. Parameter ranges and defaults
  * live in the parameter schema (params.ts).
  */
-import type { ContinuousParamId, ParamId } from './params';
+import type { ContinuousParamId, LfoSync, ParamId } from './params';
 
 // ── Pitch ────────────────────────────────────────────────────────────────
 export const A4_MIDI = 69;
@@ -12,6 +12,7 @@ export const MIDI_C0 = 12;
 export const SEMITONES_PER_OCTAVE = 12;
 export const CENTS_PER_SEMITONE = 100;
 export const CENTS_PER_OCTAVE = 1200;
+export const SECONDS_PER_MINUTE = 60;
 
 // ── Notes and timing ─────────────────────────────────────────────────────
 /** How long a round's note (and Free Play's short Play) is held before release, in seconds. */
@@ -68,16 +69,21 @@ export const LOUDNESS_STEP_SECONDS = 0.005;
  */
 export const SCORE_TOLERANCE: Readonly<Record<ContinuousParamId, number>> = {
   'osc2.detune': 0.5,
+  'sub.level': 0.5,
   'noise.level': 0.5,
   'filter.cutoff': 2,
   'filter.resonance': 0.5,
+  'drive.amount': 0.5,
   'fenv.amount': 0.5,
   'fenv.decay': 3,
   'amp.attack': 3,
   'amp.decay': 3,
   'amp.sustain': 0.5,
   'amp.release': 3,
+  /** Also used for LFO sync: both compare the LFO's speed, in octaves. */
   'lfo.rate': 2,
+  /** Never scored on its own: tempo only sets a synced LFO's speed. */
+  'lfo.tempo': 0.5,
   'lfo.depth': 0.5,
 };
 /** Differences smaller than this (in the control's units) count as exact. */
@@ -89,9 +95,11 @@ export const SCORE_WEIGHTS: Readonly<Record<ParamId, number>> = {
   'osc.wave': 2,
   'osc.octave': 1,
   'osc2.detune': 1,
+  'sub.level': 1,
   'noise.level': 1,
   'filter.cutoff': 2,
   'filter.resonance': 1,
+  'drive.amount': 1,
   'fenv.amount': 1,
   'fenv.decay': 1,
   'amp.attack': 1,
@@ -99,7 +107,9 @@ export const SCORE_WEIGHTS: Readonly<Record<ParamId, number>> = {
   'amp.sustain': 1,
   'amp.release': 1,
   'lfo.target': 1,
+  'lfo.sync': 1,
   'lfo.rate': 1,
+  'lfo.tempo': 1,
   'lfo.depth': 1,
 };
 /** Controls with closeness below this get a feedback tip. */
@@ -145,7 +155,23 @@ export const AUDIO_CALIBRATION = {
   loudnessDb: { perfect: 0.3, zero: 6 },
   brightnessOctaves: { perfect: 0.03, zero: 0.8 },
   timbre: { perfect: 2, zero: 45 },
+  lowEndDb: { perfect: 1, zero: 12 },
 } as const;
+/**
+ * The low-end part compares how much energy sits in each octave band
+ * between these edges, in Hz, as dB of the total. MFCCs and the centroid
+ * barely register a sub, so without this a missing sub could sound "the
+ * same".
+ */
+export const LOW_END_BAND_EDGES_HZ = [20, 40, 80] as const;
+/**
+ * Band levels are floored here, in dB of the total; a band both sounds have
+ * below this is left out. About where a sub stops being noticeable under
+ * the rest of the sound.
+ */
+export const LOW_END_FLOOR_DB = -24;
+/** FFT size for the low-end bands: long enough to resolve 20–80 Hz. Frames step by half of it. */
+export const LOW_END_FFT_SIZE = 8192;
 /** Share of the final score that comes from the audio score. */
 export const AUDIO_SCORE_WEIGHT = 0.3;
 /** An audio score at or above this lifts the final score to at least AUDIO_MATCH_FLOOR. */
@@ -159,7 +185,7 @@ export const ANALYSER_SMOOTHING = 0.75;
 export const ANALYSER_MIN_DB = -100;
 export const ANALYSER_MAX_DB = -20;
 /** Frequency range drawn, in Hz. */
-export const SPECTRUM_MIN_HZ = 30;
+export const SPECTRUM_MIN_HZ = 20;
 export const SPECTRUM_MAX_HZ = 16000;
 /** Log-spaced bands in the result overlay. */
 export const OVERLAY_BANDS = 96;
@@ -184,6 +210,8 @@ export const RELEASE_MIN_AUDIBLE_LEVEL = 0.01;
  * fundamental times this (only the fundamental gets through).
  */
 export const WAVEFORM_MIN_CUTOFF_RATIO = 1;
+/** A sub oscillator below this can't be heard, in Hz. */
+export const SUB_MIN_AUDIBLE_HZ = 25;
 
 // ── Levels and progress ──────────────────────────────────────────────────
 /** Rounds in a level run, unless the level sets its own. */
@@ -225,12 +253,42 @@ export const DECLICK_TIME = 0.005;
 export const OSC_MIX_GAIN = 0.5;
 /** Gain of the noise source when noise level is at 100 %. */
 export const NOISE_MAX_GAIN = 0.5;
+/** Gain of the sub oscillator when Sub is at 100 %. */
+export const SUB_MAX_GAIN = 0.6;
+/** The sub oscillator plays this many octaves below osc 1. */
+export const SUB_OCTAVES_BELOW = 1;
 /** Resonance 0–1 maps linearly to lowpass Q of 0 dB up to this. */
 export const RESONANCE_MAX_DB = 18;
 /** Output gain of a single voice. */
 export const VOICE_GAIN = 0.5;
 /** Fixed gain of the master bus. */
 export const MASTER_GAIN = 0.6;
+
+// ── Drive ────────────────────────────────────────────────────────────────
+/**
+ * Drive pushes the signal into a tanh soft clipper with a gain of
+ * DRIVE_MAX_GAIN^amount − 1 (0 at no drive, 31 at full), normalised so a
+ * full-scale input still peaks at 1.
+ */
+export const DRIVE_MAX_GAIN = 32;
+/** The drive curve covers inputs up to this level, so resonant peaks aren't hard-clipped. A power of two, so scaling in and out is exact. */
+export const DRIVE_HEADROOM = 4;
+/** Points in the drive curve. Odd, so silence maps exactly to the middle point. */
+export const DRIVE_CURVE_SIZE = 4097;
+/** Oversampling for the drive stage, to keep its new harmonics from aliasing. */
+export const DRIVE_OVERSAMPLE: OverSampleType = '4x';
+
+// ── LFO sync ─────────────────────────────────────────────────────────────
+/** LFO cycles per beat for each synced note length: a 1/4 note is one beat, so 1/4 is one cycle per beat. */
+export const LFO_SYNC_CYCLES_PER_BEAT: Readonly<Record<Exclude<LfoSync, 'off'>, number>> = {
+  '1/2': 0.5,
+  '1/4': 1,
+  '1/4T': 1.5,
+  '1/8': 2,
+  '1/8T': 3,
+  '1/16': 4,
+  '1/16T': 6,
+};
 
 // ── LFO depth at 100 % ───────────────────────────────────────────────────
 export const LFO_CUTOFF_DEPTH_OCTAVES = 3;
@@ -270,3 +328,6 @@ export const KNOB_PAGE_STEP = 0.1;
 export const KNOB_SWEEP_DEGREES = 270;
 /** Two taps closer together than this reset a knob, in milliseconds. */
 export const DOUBLE_TAP_MS = 300;
+/** Selectors with more options than this wrap into rows of SELECTOR_ROW_OPTIONS. */
+export const SELECTOR_MAX_ONE_ROW = 5;
+export const SELECTOR_ROW_OPTIONS = 4;

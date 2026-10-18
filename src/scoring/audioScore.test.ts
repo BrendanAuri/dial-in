@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { AUDIO_CALIBRATION, RENDER_SAMPLE_RATE } from '../engine/constants';
 import type { FeatureFrames } from './audioFeatures';
-import { audioScore, audioScoreFromDistances, compareFrames, partScore } from './audioScore';
+import { audioScore, audioScoreFromDistances, compareFrames, compareLowEnd, partScore } from './audioScore';
 
 const SR = RENDER_SAMPLE_RATE;
 const SECONDS = 1;
@@ -84,7 +84,30 @@ describe('partScore', () => {
   });
 
   it('averages the three parts', () => {
-    const result = audioScoreFromDistances({ loudnessDb: 0, brightnessOctaves: 0, timbre: 1000 });
+    const result = audioScoreFromDistances({ loudnessDb: 0, brightnessOctaves: 0, timbre: 1000, lowEndDb: null });
     expect(result.score).toBeCloseTo(200 / 3);
+  });
+});
+
+describe('low end', () => {
+  const low = tone(65, 10, 1);
+  const withSub = low.map((s, i) => s + 0.25 * Math.sin((2 * Math.PI * 32.7 * i) / SR));
+
+  it('is left out when neither sound has any', () => {
+    const result = audioScore(bright, dull, SR);
+    expect(result.distances.lowEndDb).toBeNull();
+    expect(result.parts.lowEnd).toBeNull();
+  });
+
+  it('notices a sub that the other parts barely hear', () => {
+    const result = audioScore(low, withSub, SR);
+    expect(result.distances.lowEndDb).toBeGreaterThan(5);
+    expect(result.parts.lowEnd).toBeLessThan(60);
+    expect(audioScore(withSub, withSub, SR).score).toBe(100);
+  });
+
+  it('skips bands where both sounds are at the floor', () => {
+    expect(compareLowEnd([-30, -30], [-30, -30])).toBeNull();
+    expect(compareLowEnd([-30, -6], [-30, -9])).toBe(3);
   });
 });

@@ -16,14 +16,20 @@ export type Octave = (typeof OCTAVES)[number];
 export const LFO_TARGETS = ['off', 'cutoff', 'pitch', 'amp'] as const;
 export type LfoTarget = (typeof LFO_TARGETS)[number];
 
+/** LFO sync: off (free-running, in Hz) or a note length at the patch's tempo, slowest first. T = triplet. */
+export const LFO_SYNCS = ['off', '1/2', '1/4', '1/4T', '1/8', '1/8T', '1/16', '1/16T'] as const;
+export type LfoSync = (typeof LFO_SYNCS)[number];
+
 /** A complete set of synth settings. */
 export interface Patch {
   'osc.wave': Waveform;
   'osc.octave': Octave;
   'osc2.detune': number;
+  'sub.level': number;
   'noise.level': number;
   'filter.cutoff': number;
   'filter.resonance': number;
+  'drive.amount': number;
   'fenv.amount': number;
   'fenv.decay': number;
   'amp.attack': number;
@@ -31,17 +37,19 @@ export interface Patch {
   'amp.sustain': number;
   'amp.release': number;
   'lfo.target': LfoTarget;
+  'lfo.sync': LfoSync;
   'lfo.rate': number;
+  'lfo.tempo': number;
   'lfo.depth': number;
 }
 
 export type ParamId = keyof Patch;
-export type DiscreteParamId = 'osc.wave' | 'osc.octave' | 'lfo.target';
+export type DiscreteParamId = 'osc.wave' | 'osc.octave' | 'lfo.target' | 'lfo.sync';
 export type ContinuousParamId = Exclude<ParamId, DiscreteParamId>;
 export type DiscreteValue = Patch[DiscreteParamId];
 
-export type EngineModule = 'osc' | 'osc2' | 'noise' | 'filter' | 'filterEnv' | 'ampEnv' | 'lfo';
-export type Unit = 'Hz' | 's' | '%' | 'cents' | 'oct';
+export type EngineModule = 'osc' | 'osc2' | 'sub' | 'noise' | 'filter' | 'drive' | 'filterEnv' | 'ampEnv' | 'lfo';
+export type Unit = 'Hz' | 's' | '%' | 'cents' | 'oct' | 'BPM';
 
 export interface ContinuousParamDef {
   readonly kind: 'continuous';
@@ -53,6 +61,8 @@ export interface ContinuousParamDef {
   readonly max: number;
   readonly default: number;
   readonly unit: Unit;
+  /** Values snap to multiples of this, if set. */
+  readonly step?: number;
 }
 
 export interface DiscreteOption<V> {
@@ -110,6 +120,17 @@ export const PARAMS: { readonly [K in ParamId]: ParamDef<K> } = {
     default: 0,
     unit: 'cents',
   },
+  'sub.level': {
+    kind: 'continuous',
+    id: 'sub.level',
+    label: 'Sub',
+    module: 'sub',
+    scale: 'linear',
+    min: 0,
+    max: 1,
+    default: 0,
+    unit: '%',
+  },
   'noise.level': {
     kind: 'continuous',
     id: 'noise.level',
@@ -137,6 +158,17 @@ export const PARAMS: { readonly [K in ParamId]: ParamDef<K> } = {
     id: 'filter.resonance',
     label: 'Resonance',
     module: 'filter',
+    scale: 'linear',
+    min: 0,
+    max: 1,
+    default: 0,
+    unit: '%',
+  },
+  'drive.amount': {
+    kind: 'continuous',
+    id: 'drive.amount',
+    label: 'Drive',
+    module: 'drive',
     scale: 'linear',
     min: 0,
     max: 1,
@@ -222,6 +254,23 @@ export const PARAMS: { readonly [K in ParamId]: ParamDef<K> } = {
     ],
     default: 'off',
   },
+  'lfo.sync': {
+    kind: 'discrete',
+    id: 'lfo.sync',
+    label: 'Sync',
+    module: 'lfo',
+    options: [
+      { value: 'off', label: 'Off' },
+      { value: '1/2', label: '1/2' },
+      { value: '1/4', label: '1/4' },
+      { value: '1/4T', label: '1/4T' },
+      { value: '1/8', label: '1/8' },
+      { value: '1/8T', label: '1/8T' },
+      { value: '1/16', label: '1/16' },
+      { value: '1/16T', label: '1/16T' },
+    ],
+    default: 'off',
+  },
   'lfo.rate': {
     kind: 'continuous',
     id: 'lfo.rate',
@@ -232,6 +281,18 @@ export const PARAMS: { readonly [K in ParamId]: ParamDef<K> } = {
     max: 20,
     default: 2,
     unit: 'Hz',
+  },
+  'lfo.tempo': {
+    kind: 'continuous',
+    id: 'lfo.tempo',
+    label: 'Tempo',
+    module: 'lfo',
+    scale: 'linear',
+    min: 60,
+    max: 200,
+    default: 120,
+    unit: 'BPM',
+    step: 1,
   },
   'lfo.depth': {
     kind: 'continuous',
@@ -251,9 +312,11 @@ export const PARAM_IDS: readonly ParamId[] = [
   'osc.wave',
   'osc.octave',
   'osc2.detune',
+  'sub.level',
   'noise.level',
   'filter.cutoff',
   'filter.resonance',
+  'drive.amount',
   'fenv.amount',
   'fenv.decay',
   'amp.attack',
@@ -261,7 +324,9 @@ export const PARAM_IDS: readonly ParamId[] = [
   'amp.sustain',
   'amp.release',
   'lfo.target',
+  'lfo.sync',
   'lfo.rate',
+  'lfo.tempo',
   'lfo.depth',
 ];
 
@@ -275,8 +340,10 @@ export const CONTINUOUS_PARAM_IDS: readonly ContinuousParamId[] = PARAM_IDS.filt
 export const MODULES: readonly { readonly id: EngineModule; readonly label: string }[] = [
   { id: 'osc', label: 'Oscillator' },
   { id: 'osc2', label: 'Osc 2' },
+  { id: 'sub', label: 'Sub' },
   { id: 'noise', label: 'Noise' },
   { id: 'filter', label: 'Filter' },
+  { id: 'drive', label: 'Drive' },
   { id: 'filterEnv', label: 'Filter envelope' },
   { id: 'ampEnv', label: 'Amp envelope' },
   { id: 'lfo', label: 'LFO' },
@@ -287,6 +354,16 @@ export function paramsInModule(module: EngineModule): ParamId[] {
   return PARAM_IDS.filter((id) => PARAMS[id].module === module);
 }
 
+/**
+ * Whether a control does anything in this patch: the LFO's Rate only
+ * applies with Sync off, and Tempo only with Sync on.
+ */
+export function isParamInUse(id: ParamId, patch: Readonly<Patch>): boolean {
+  if (id === 'lfo.rate') return patch['lfo.sync'] === 'off';
+  if (id === 'lfo.tempo') return patch['lfo.sync'] !== 'off';
+  return true;
+}
+
 /** Labels that need their module to make sense on their own: shared ones, plus a few generic words. */
 const CONTEXT_LABELS = new Set([
   ...PARAM_IDS.map((id) => PARAMS[id].label).filter((label, i, all) => all.indexOf(label) !== i),
@@ -294,6 +371,7 @@ const CONTEXT_LABELS = new Set([
   'Rate',
   'Depth',
   'Target',
+  'Sync',
 ]);
 
 /** A control's name, with its module added where the label alone is unclear ("Amp envelope decay", "LFO rate"). */

@@ -1,26 +1,36 @@
 /**
- * One synth voice: a single note through the v1 signal chain.
+ * One synth voice: a single note through the signal chain.
  *
  *   osc 1 ─┐
- *   osc 2 ─┼─> lowpass ─> amp env ─> tremolo ─> out (declick × voice gain) ─> destination
- *   noise ─┘     ^
+ *   osc 2 ─┼─> lowpass ─> drive ─┐
+ *   noise ─┘     ^               ├─> amp env ─> tremolo ─> out (declick × voice gain) ─> destination
+ *                │        sub ───┘
  *          filter env + LFO (both on filter.detune, so they move in octaves)
+ *
+ * The sub (a sine below osc 1) joins after the filter and drive, so it
+ * stays clean however the rest is shaped.
  *
  * The same code runs in a live AudioContext and in an OfflineAudioContext.
  */
 import {
   DECLICK_TIME,
+  DRIVE_HEADROOM,
+  DRIVE_OVERSAMPLE,
   NOISE_MAX_GAIN,
   OSC_MIX_GAIN,
   PARAM_SMOOTHING_TIME,
   RESONANCE_MAX_DB,
   SEMITONES_PER_OCTAVE,
+  SUB_MAX_GAIN,
+  SUB_OCTAVES_BELOW,
   VOICE_GAIN,
 } from './constants';
+import { driveCurve } from './drive';
 import {
   ampEnvelopeValue,
   filterEnvPeakOctaves,
   lfoModulationAmount,
+  lfoRateHz,
   octavesToCents,
   segmentTimeConstant,
   tremoloBaseGain,
@@ -62,6 +72,10 @@ function oscFrequency(note: number, patch: Readonly<Patch>): number {
   return midiToHz(note + patch['osc.octave'] * SEMITONES_PER_OCTAVE);
 }
 
+function subFrequency(note: number, patch: Readonly<Patch>): number {
+  return oscFrequency(note, patch) / 2 ** SUB_OCTAVES_BELOW;
+}
+
 class Voice implements VoiceHandle {
   readonly note: number;
   readonly startTime: number;
@@ -74,11 +88,14 @@ class Voice implements VoiceHandle {
 
   private readonly osc1: OscillatorNode;
   private readonly osc2: OscillatorNode;
+  private readonly sub: OscillatorNode;
   private readonly noise: AudioBufferSourceNode;
   private readonly lfo: OscillatorNode;
   private readonly nodes: readonly AudioNode[];
   private readonly noiseGain: GainNode;
   private readonly filter: BiquadFilterNode;
+  private readonly shaper: WaveShaperNode;
+  private readonly subGain: GainNode;
   private readonly amp: GainNode;
   private readonly tremolo: GainNode;
   private readonly lfoGain: GainNode;
@@ -102,6 +119,8 @@ class Voice implements VoiceHandle {
     this.osc1 = new OscillatorNode(ctx, { type, frequency, detune: -halfDetune });
     this.osc2 = new OscillatorNode(ctx, { type, frequency, detune: halfDetune });
     const oscMix = new GainNode(ctx, { gain: OSC_MIX_GAIN });
+    this.sub = new OscillatorNode(ctx, { type: 'sine', frequency: subFrequency(note, patch) });
+    this.subGain = new GainNode(ctx, { gain: patch['sub.level'] * SUB_MAX_GAIN });
     this.noise = new AudioBufferSourceNode(ctx, { buffer: getNoiseBuffer(ctx), loop: true });
     this.noiseGain = new GainNode(ctx, { gain: patch['noise.level'] * NOISE_MAX_GAIN });
     this.filter = new BiquadFilterNode(ctx, {
@@ -109,21 +128,30 @@ class Voice implements VoiceHandle {
       frequency: patch['filter.cutoff'],
       Q: patch['filter.resonance'] * RESONANCE_MAX_DB,
     });
+    // Drive: scaled down into the shaper and back up, so its curve covers
+    // loud resonant peaks too. With no drive the shaper has no curve and
+    // passes the signal through untouched.
+    const driveIn = new GainNode(ctx, { gain: 1 / DRIVE_HEADROOM });
+    this.shaper = new WaveShaperNode(ctx, { oversample: DRIVE_OVERSAMPLE });
+    this.shaper.curve = driveCurve(patch['drive.amount']);
+    const driveOut = new GainNode(ctx, { gain: DRIVE_HEADROOM });
     this.amp = new GainNode(ctx, { gain: 0 });
     this.tremolo = new GainNode(ctx, { gain: tremoloBaseGain(lfoTarget, lfoDepth) });
     this.out = new GainNode(ctx, { gain: 0 });
-    this.lfo = new OscillatorNode(ctx, { type: 'sine', frequency: patch['lfo.rate'] });
+    this.lfo = new OscillatorNode(ctx, { type: 'sine', frequency: lfoRateHz(patch) });
     this.lfoGain = new GainNode(ctx, { gain: lfoModulationAmount(lfoTarget, lfoDepth) });
     this.nodes = [
-      this.osc1, this.osc2, oscMix, this.noise, this.noiseGain, this.filter,
-      this.amp, this.tremolo, this.out, this.lfo, this.lfoGain,
+      this.osc1, this.osc2, oscMix, this.sub, this.subGain, this.noise, this.noiseGain, this.filter,
+      driveIn, this.shaper, driveOut, this.amp, this.tremolo, this.out, this.lfo, this.lfoGain,
     ];
 
     this.osc1.connect(oscMix);
     this.osc2.connect(oscMix);
     oscMix.connect(this.filter);
     this.noise.connect(this.noiseGain).connect(this.filter);
-    this.filter.connect(this.amp).connect(this.tremolo).connect(this.out).connect(destination);
+    this.filter.connect(driveIn).connect(this.shaper).connect(driveOut).connect(this.amp);
+    this.sub.connect(this.subGain).connect(this.amp);
+    this.amp.connect(this.tremolo).connect(this.out).connect(destination);
     this.lfo.connect(this.lfoGain);
     this.connectLfo(lfoTarget);
 
@@ -194,15 +222,18 @@ class Voice implements VoiceHandle {
       const frequency = oscFrequency(this.note, patch);
       this.osc1.frequency.setValueAtTime(frequency, t);
       this.osc2.frequency.setValueAtTime(frequency, t);
+      this.sub.frequency.setValueAtTime(subFrequency(this.note, patch), t);
     }
     if (changed('osc2.detune')) {
       smooth(this.osc1.detune, -patch['osc2.detune'] / 2);
       smooth(this.osc2.detune, patch['osc2.detune'] / 2);
     }
+    if (changed('sub.level')) smooth(this.subGain.gain, patch['sub.level'] * SUB_MAX_GAIN);
     if (changed('noise.level')) smooth(this.noiseGain.gain, patch['noise.level'] * NOISE_MAX_GAIN);
     if (changed('filter.cutoff')) smooth(this.filter.frequency, patch['filter.cutoff']);
     if (changed('filter.resonance')) smooth(this.filter.Q, patch['filter.resonance'] * RESONANCE_MAX_DB);
-    if (changed('lfo.rate')) smooth(this.lfo.frequency, patch['lfo.rate']);
+    if (changed('drive.amount')) this.shaper.curve = driveCurve(patch['drive.amount']);
+    if (changed('lfo.rate') || changed('lfo.sync') || changed('lfo.tempo')) smooth(this.lfo.frequency, lfoRateHz(patch));
     if (changed('lfo.target')) this.connectLfo(patch['lfo.target']);
     if (changed('lfo.target') || changed('lfo.depth')) {
       smooth(this.lfoGain.gain, lfoModulationAmount(patch['lfo.target'], patch['lfo.depth']));
@@ -212,7 +243,7 @@ class Voice implements VoiceHandle {
   }
 
   private sources(): AudioScheduledSourceNode[] {
-    return [this.osc1, this.osc2, this.noise, this.lfo];
+    return [this.osc1, this.osc2, this.sub, this.noise, this.lfo];
   }
 
   private connectLfo(target: LfoTarget): void {
@@ -226,6 +257,7 @@ class Voice implements VoiceHandle {
       case 'pitch':
         this.lfoGain.connect(this.osc1.detune);
         this.lfoGain.connect(this.osc2.detune);
+        this.lfoGain.connect(this.sub.detune);
         break;
       case 'amp':
         this.lfoGain.connect(this.tremolo.gain);

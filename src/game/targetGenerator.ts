@@ -87,9 +87,14 @@ function pickTemplate(rng: Rng, spec: GeneratorSpec): GeneratorTemplate | null {
   return weightedPick(rng, templates, templates.map((template) => template.weight));
 }
 
-/** A whole patch from one template, every control in play. */
+/**
+ * A whole patch from one template: the controls it lists are drawn from
+ * it, the rest come from `base`. (Templates written before an engine
+ * module existed don't list it, so it stays off.)
+ */
 export function patchFromTemplate(rng: Rng, template: GeneratorTemplate, base: Readonly<Patch> = DEFAULT_PATCH): Patch {
-  return samplePatch(rng, template.params, new Set(PARAM_IDS), base);
+  const listed = new Set(PARAM_IDS.filter((id) => template.params[id] !== undefined));
+  return samplePatch(rng, template.params, listed, base);
 }
 
 /**

@@ -47,9 +47,9 @@ describe('serialisation', () => {
   });
 
   it('drops unknown parameters', () => {
-    const patch = deserialisePatch({ v: 1, params: { 'drive.amount': 0.7, 'osc.wave': 'sine' } });
+    const patch = deserialisePatch({ v: 1, params: { 'fm.ratio': 0.7, 'osc.wave': 'sine' } });
     expect(patch).toEqual({ ...DEFAULT_PATCH, 'osc.wave': 'sine' });
-    expect(patch).not.toHaveProperty('drive.amount');
+    expect(patch).not.toHaveProperty('fm.ratio');
   });
 
   it('clamps out-of-range numbers and rejects invalid choices', () => {

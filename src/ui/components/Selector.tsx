@@ -1,4 +1,5 @@
 import { useId } from 'react';
+import { SELECTOR_MAX_ONE_ROW, SELECTOR_ROW_OPTIONS } from '../../engine/constants';
 import type { DiscreteOption } from '../../engine/params';
 
 interface SelectorProps<V extends string | number> {
@@ -28,7 +29,12 @@ export function Selector<V extends string | number>({
       <div className={hideLabel ? 'visually-hidden' : 'selector-label'} id={labelId}>
         {label}
       </div>
-      <div className="selector-options" role="radiogroup" aria-labelledby={labelId}>
+      <div
+        className={options.length > SELECTOR_MAX_ONE_ROW ? 'selector-options wrap' : 'selector-options'}
+        style={options.length > SELECTOR_MAX_ONE_ROW ? { gridTemplateColumns: `repeat(${SELECTOR_ROW_OPTIONS}, 1fr)` } : undefined}
+        role="radiogroup"
+        aria-labelledby={labelId}
+      >
         {options.map((option) => (
           <button
             key={String(option.value)}

@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { BACKUP_NUDGE_SAVES } from '../../engine/constants';
-import { isReadOnly, querySounds, type Library, type SavedSound, type SortOrder } from '../../library/library';
+import { isReadOnly, querySounds, userSounds, type Library, type SavedSound, type SortOrder } from '../../library/library';
 import { Modal } from './Modal';
 
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' });
@@ -31,6 +31,7 @@ export function LibraryPanel(props: LibraryPanelProps) {
 
   const sounds = querySounds(library, { search, sort, favouritesOnly });
   const empty = library.sounds.length === 0;
+  const nothingToExport = userSounds(library).length === 0;
 
   return (
     <Modal title="Sounds" onClose={props.onClose} className="sheet">
@@ -89,7 +90,7 @@ export function LibraryPanel(props: LibraryPanelProps) {
               sound.id === currentId ? 'open now' : null,
               readOnly ? 'preset' : null,
               sound.tags.length > 0 ? sound.tags.join(', ') : null,
-              dateFormat.format(sound.updatedAt),
+              readOnly ? null : dateFormat.format(sound.updatedAt),
             ].filter((part) => part !== null);
             return (
               <li key={sound.id} className={open ? 'sound open' : 'sound'}>
@@ -143,7 +144,7 @@ export function LibraryPanel(props: LibraryPanelProps) {
       )}
 
       <div className="library-footer">
-        <button type="button" className="button" disabled={empty} onClick={props.onExportAll}>
+        <button type="button" className="button" disabled={nothingToExport} onClick={props.onExportAll}>
           Export all
         </button>
         <button type="button" className="button" onClick={() => fileInput.current?.click()}>

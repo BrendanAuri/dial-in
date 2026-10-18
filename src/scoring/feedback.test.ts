@@ -52,9 +52,11 @@ describe('tipText', () => {
       'osc.wave': 'sine',
       'osc.octave': 1,
       'osc2.detune': 40,
+      'sub.level': 1,
       'noise.level': 0.9,
       'filter.cutoff': 18000,
       'filter.resonance': 1,
+      'drive.amount': 1,
       'fenv.amount': 5,
       'fenv.decay': 2,
       'amp.attack': 2,
@@ -62,7 +64,9 @@ describe('tipText', () => {
       'amp.sustain': 1,
       'amp.release': 3,
       'lfo.target': 'amp',
+      'lfo.sync': '1/16T',
       'lfo.rate': 20,
+      'lfo.tempo': 200,
       'lfo.depth': 1,
     };
     for (const id of PARAM_IDS) {
@@ -104,5 +108,29 @@ describe('hintFor', () => {
 
   it('says so when everything is spot on', () => {
     expect(hintFor(scoreParams(target, target, ['osc.wave'], context), target, target)).toMatch(/spot on/);
+  });
+});
+
+describe('bass music tips', () => {
+  const synced: Patch = { ...target, 'lfo.sync': '1/8', 'lfo.tempo': 140 };
+
+  it('names note lengths for a synced LFO', () => {
+    expect(tipText('lfo.sync', { ...synced, 'lfo.sync': '1/16' }, synced)).toBe(
+      'LFO sync: yours is 1/16 and the target is 1/8, so yours moves faster.',
+    );
+    expect(tipText('lfo.sync', { ...synced, 'lfo.sync': 'off', 'lfo.rate': 0.5 }, synced)).toMatch(
+      /target is synced to 1\/8\. Yours runs free in Hz and moves much slower/,
+    );
+    expect(hintFor(scoreParams(synced, { ...synced, 'lfo.sync': '1/4' }, ['lfo.sync'], context), { ...synced, 'lfo.sync': '1/4' }, synced)).toBe(
+      'Try a faster LFO sync setting.',
+    );
+  });
+
+  it('describes drive and sub by what you hear', () => {
+    expect(tipText('drive.amount', { ...target, 'drive.amount': 0.6 }, target)).toBe(
+      'Drive: too much. The target is clean, with no distortion.',
+    );
+    expect(tipText('drive.amount', target, { ...target, 'drive.amount': 0.7 })).toMatch(/dirtier, with more harmonics/);
+    expect(tipText('sub.level', target, { ...target, 'sub.level': 0.8 })).toMatch(/deeper, heavier low end/);
   });
 });

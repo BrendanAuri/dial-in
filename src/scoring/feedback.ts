@@ -4,7 +4,8 @@
  * name the furthest-off control and a direction but never a value.
  */
 import { INSTANT_ATTACK, TIP_CLOSENESS } from '../engine/constants';
-import { controlName, PARAMS, type LfoTarget, type ParamId, type Patch, type Waveform } from '../engine/params';
+import { lfoRateHz } from '../engine/modulation';
+import { controlName, PARAMS, type LfoSync, type LfoTarget, type ParamId, type Patch, type Waveform } from '../engine/params';
 import { effectiveLfoTarget } from './audible';
 import { impact, type ParamScore } from './paramScore';
 
@@ -53,6 +54,15 @@ function linearSize(id: ParamId, mine: number, target: number): string {
   if (fraction < 0.15) return 'a bit ';
   if (fraction < 0.45) return '';
   return 'much ';
+}
+
+function syncName(sync: LfoSync): string {
+  return PARAMS['lfo.sync'].options.find((option) => option.value === sync)?.label ?? sync;
+}
+
+/** How much faster your LFO moves than the target's, in octaves (negative: slower). */
+function lfoSpeedOctaves(mine: Readonly<Patch>, target: Readonly<Patch>): number {
+  return Math.log2(lfoRateHz(mine) / lfoRateHz(target));
 }
 
 function waveName(wave: Waveform): string {
@@ -130,11 +140,21 @@ export function tipText(id: ParamId, mine: Readonly<Patch>, target: Readonly<Pat
       return `${name}: the target wobbles its ${LFO_MOVES[theirs]}, not its ${LFO_MOVES[mine['lfo.target']]}.`;
     }
     case 'lfo.rate': {
-      const octaves = Math.log2(mine[id] / target[id]);
+      const octaves = lfoSpeedOctaves(mine, target);
+      const synced = mine['lfo.sync'] === 'off' ? '' : ' Yours is synced to the tempo: set Sync to Off to use Rate.';
       return octaves > 0
-        ? `${name}: ${ratioSize(octaves)}too fast. The target's movement is slower.`
-        : `${name}: ${ratioSize(octaves)}too slow. The target's movement is faster.`;
+        ? `${name}: ${ratioSize(octaves)}too fast. The target's movement is slower.${synced}`
+        : `${name}: ${ratioSize(octaves)}too slow. The target's movement is faster.${synced}`;
     }
+    case 'lfo.sync': {
+      const octaves = lfoSpeedOctaves(mine, target);
+      const speed = octaves > 0 ? 'faster' : 'slower';
+      return mine[id] === 'off'
+        ? `${name}: the target is synced to ${syncName(target[id])}. Yours runs free in Hz and moves ${ratioSize(octaves)}${speed}.`
+        : `${name}: yours is ${syncName(mine[id])} and the target is ${syncName(target[id])}, so yours moves ${speed}.`;
+    }
+    case 'lfo.tempo':
+      return `${name}: yours is ${Math.round(mine[id])} BPM; the target is ${Math.round(target[id])} BPM.`;
     case 'lfo.depth': {
       const size = linearSize(id, mine[id], target[id]);
       return mine[id] > target[id]
@@ -155,6 +175,24 @@ export function tipText(id: ParamId, mine: Readonly<Patch>, target: Readonly<Pat
       return mine[id] > target[id]
         ? `${name}: ${size}too much. Yours is hissier than the target.`
         : `${name}: ${size}too little. The target has more hiss or breath.`;
+    }
+    case 'sub.level': {
+      const size = linearSize(id, mine[id], target[id]);
+      if (mine[id] > target[id]) {
+        return target[id] === 0
+          ? `${name}: too much. The target has no sub.`
+          : `${name}: ${size}too much. Yours has more low-end weight than the target.`;
+      }
+      return `${name}: ${size}too little. The target has a deeper, heavier low end. Headphones help here.`;
+    }
+    case 'drive.amount': {
+      const size = linearSize(id, mine[id], target[id]);
+      if (mine[id] > target[id]) {
+        return target[id] === 0
+          ? `${name}: too much. The target is clean, with no distortion.`
+          : `${name}: ${size}too much. Yours is grittier and more distorted than the target.`;
+      }
+      return `${name}: ${size}too little. The target is dirtier, with more harmonics and grit.`;
     }
   }
 }
@@ -183,6 +221,10 @@ function hintDirection(id: ParamId, mine: Readonly<Patch>, target: Readonly<Patc
       return `Try a ${mine[id] < target[id] ? 'higher' : 'lower'} octave.`;
     case 'lfo.target':
       return effectiveLfoTarget(target) === 'off' ? 'Listen again: does the target move at all?' : `Try a different ${name}.`;
+    case 'lfo.sync':
+      return `Try a ${lfoSpeedOctaves(mine, target) < 0 ? 'faster' : 'slower'} ${name} setting.`;
+    case 'lfo.rate':
+      return `Try turning ${name} ${lfoSpeedOctaves(mine, target) < 0 ? 'up' : 'down'}.`;
     default:
       return `Try turning ${name} ${mine[id] < target[id] ? 'up' : 'down'}.`;
   }

@@ -452,15 +452,17 @@ select {
   font-size: 0.8rem;
 }
 
+/* Wraps once there are more tiers than fit, so each pack's tiers tend to share a row on phones. */
 .tier-tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   margin: 8px 0 12px;
 }
 
 .tier-tab {
   display: flex;
-  flex: 1 1 0;
+  flex: 1 1 72px;
   flex-direction: column;
   align-items: center;
   justify-content: center;
@@ -1044,6 +1046,15 @@ select {
   opacity: 0.45;
 }
 
+/* Works, but does nothing in the current patch (LFO rate while synced). */
+.knob.unused {
+  opacity: 0.6;
+}
+
+.knob.unused .knob-value {
+  stroke: var(--text-muted);
+}
+
 .knob.disabled .knob-dial {
   cursor: not-allowed;
 }
@@ -1532,6 +1543,17 @@ select {
   background: var(--accent);
   color: var(--accent-text);
   font-weight: 600;
+}
+
+/* Long option lists (LFO sync) wrap into rows, with 1px gaps as the dividers. */
+.selector-options.wrap {
+  display: grid;
+  gap: 1px;
+  background: var(--border);
+}
+
+.selector-options.wrap .selector-option + .selector-option {
+  border-left: none;
 }
 
 /* ── Spectrum views ────────────────────────────────────────────────────── */

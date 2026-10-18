@@ -25,7 +25,7 @@ Inspired by Syntorial. The core content is genre-neutral: it teaches synthesis f
 - Content is data: levels live in packs, so a new pack needs no changes to engine, scoring or UI code
 - Free Play with a library of saved sounds that survives app updates
 
-**v1 content**: the **Foundations** pack only (§7.2). Bass Music and other packs come after v1 (Milestone 10).
+**v1 content**: the **Foundations** pack (§7.2). Milestone 10 added the first expansion pack, **Bass Music** (§7.3).
 
 **Non-goals (v1)**: user accounts, backend, multiplayer, app-store builds, MIDI input, downloadable or paid packs. These are stretch goals (see Milestone 11).
 
@@ -50,6 +50,7 @@ src/
     params.ts        # parameter schema: ids, ranges, scales, defaults, engine module
     patch.ts         # Patch type, defaults, clamping, versioned (de)serialisation
     voice.ts         # buildVoice(ctx: BaseAudioContext, patch, note, startTime) -> VoiceHandle
+    drive.ts         # the drive stage's soft-clipper curve
     voiceManager.ts  # live note on/off, polyphony and mono mode (Free Play)
     render.ts        # renderPatch(patch, note, holdTime) -> AudioBuffer via OfflineAudioContext
     constants.ts     # every tunable number lives here
@@ -60,9 +61,12 @@ src/
     feedback.ts      # turns distances into plain-language tips
     finalScore.ts    # blends param and audio scores
   content/           # pure data, no logic
-    schema.ts        # Pack, Chapter, Level, GeneratorSpec types
+    schema.ts        # Pack, Chapter, Level, GeneratorSpec, Preset types
+    soundTypes.ts    # general sound-type templates (pluck, pad, lead, bass, brass)
+    bassTypes.ts     # bass music templates (sub, reese, wobble, growl, stab)
     packs/
       foundations.ts # the v1 pack
+      bass.ts        # Bass Music, the first expansion pack
   game/
     rng.ts           # seeded RNG so any round can be replayed from its seed
     targetGenerator.ts  # builds targets from a level's GeneratorSpec
@@ -85,36 +89,43 @@ Rules:
 - `content/` is plain, JSON-serialisable data: no functions, no imports beyond types. This keeps the door open to loading packs at runtime later.
 - Nothing outside `content/` refers to a specific pack or level id. Foundations gets no special-casing.
 
-## 5. The synth (v1 voice)
+## 5. The synth
 
 One voice per note. Rounds play a single note: hold 1.5 s, then release. Free Play plays notes live from a keyboard (§10). Signal flow per voice:
 
 ```
 Osc 1 ─┐
-Osc 2 ─┼─> Lowpass filter ─> Amp (envelope) ─> Master gain ─> output
-Noise ─┘        ^
+Osc 2 ─┼─> Lowpass filter ─> Drive ─┐
+Noise ─┘        ^                   ├─> Amp (envelope) ─> Master gain ─> output
+                │            Sub ───┘
           filter envelope + LFO
 ```
 
-Parameters belong to engine **modules** (osc, osc 2, noise, filter, amp envelope, filter envelope, LFO). Which level introduces a control is pack data (§7), not part of the parameter schema; the last column shows where the Foundations pack introduces it.
+The sub joins after the filter and drive, so it stays clean however the rest is shaped (as producers keep their subs).
 
-| id | Label | Range | Scale | Default | Foundations level |
+Parameters belong to engine **modules** (osc, osc 2, sub, noise, filter, drive, amp envelope, filter envelope, LFO). Which level introduces a control is pack data (§7), not part of the parameter schema; the last column shows where each pack introduces it (F = Foundations, B = Bass Music).
+
+| id | Label | Range | Scale | Default | Introduced |
 | --- | --- | --- | --- | --- | --- |
-| `osc.wave` | Waveform | sine, triangle, saw, square | discrete | saw | 1 |
-| `osc.octave` | Octave | -1, 0, +1 | discrete | 0 | 1 |
-| `filter.cutoff` | Cutoff | 40–18,000 Hz | log | 18,000 | 2 |
-| `filter.resonance` | Resonance | 0–1 (maps to lowpass Q in dB, about 0–18 dB) | linear | 0 | 3 |
-| `amp.attack` | Attack | 0.001–2 s | log | 0.005 | 4 |
-| `amp.release` | Release | 0.01–3 s | log | 0.1 | 4 |
-| `amp.decay` | Decay | 0.01–2 s | log | 0.3 | 5 |
-| `amp.sustain` | Sustain | 0–1 | linear | 1 | 5 |
-| `fenv.amount` | Filter env amount | 0–5 octaves | linear (octaves) | 0 | 6 |
-| `fenv.decay` | Filter env decay | 0.01–2 s | log | 0.3 | 6 |
-| `lfo.target` | LFO target | off, cutoff, pitch, amp | discrete | off | 7 |
-| `lfo.rate` | LFO rate | 0.1–20 Hz | log | 2 | 7 |
-| `lfo.depth` | LFO depth | 0–1 | linear | 0 | 7 |
-| `osc2.detune` | Osc 2 detune (same wave as osc 1; 0 = off) | 0–50 cents | linear | 0 | 8 |
-| `noise.level` | Noise | 0–1 | linear | 0 | 9 |
+| `osc.wave` | Waveform | sine, triangle, saw, square | discrete | saw | F1, B base |
+| `osc.octave` | Octave | -1, 0, +1 | discrete | 0 | F1, B base |
+| `filter.cutoff` | Cutoff | 40–18,000 Hz | log | 18,000 | F2, B base |
+| `filter.resonance` | Resonance | 0–1 (maps to lowpass Q in dB, about 0–18 dB) | linear | 0 | F3, B base |
+| `amp.attack` | Attack | 0.001–2 s | log | 0.005 | F4, B6 |
+| `amp.release` | Release | 0.01–3 s | log | 0.1 | F4, B6 |
+| `amp.decay` | Decay | 0.01–2 s | log | 0.3 | F5, B6 |
+| `amp.sustain` | Sustain | 0–1 | linear | 1 | F5, B6 |
+| `fenv.amount` | Filter env amount | 0–5 octaves | linear (octaves) | 0 | F6, B6 |
+| `fenv.decay` | Filter env decay | 0.01–2 s | log | 0.3 | F6, B6 |
+| `lfo.target` | LFO target | off, cutoff, pitch, amp | discrete | off | F7, B4 |
+| `lfo.rate` | LFO rate (used while Sync is off) | 0.1–20 Hz | log | 2 | F7 |
+| `lfo.depth` | LFO depth | 0–1 | linear | 0 | F7, B4 |
+| `osc2.detune` | Osc 2 detune (same wave as osc 1; 0 = off) | 0–50 cents | linear | 0 | F8, B3 |
+| `noise.level` | Noise | 0–1 | linear | 0 | F9 |
+| `sub.level` | Sub (sine one octave below osc 1) | 0–1 | linear | 0 | B1 |
+| `drive.amount` | Drive | 0–1 | linear | 0 | B2 |
+| `lfo.sync` | LFO sync | off, 1/2, 1/4, 1/4T, 1/8, 1/8T, 1/16, 1/16T | discrete | off | B4 |
+| `lfo.tempo` | Tempo (used while Sync is on) | 60–200 BPM, whole numbers | linear | 120 | fixed by levels |
 
 Implementation notes:
 - `buildVoice` returns a `VoiceHandle` with `release(time)`, `stop(time)` and `update(patch, time)`. Rounds and `renderPatch` call `release` at the hold time; Free Play calls it on key-up. `update` applies oscillator, filter, noise and LFO changes to a sounding voice (continuous ones with short smoothing); attack, decay, sustain and the filter envelope take effect from the next note, and release applies if the note hasn't started releasing yet.
@@ -122,10 +133,13 @@ Implementation notes:
 - Filter envelope works in octaves: `cutoff × 2^(env × amount)`, clamped to the cutoff range.
 - LFO: `OscillatorNode` → `GainNode` (depth) → target `AudioParam`. Depth meaning per target: cutoff ±3 octaves, pitch ±1 semitone, amp 0–100 % tremolo.
 - Noise: looping white-noise `AudioBufferSourceNode`.
+- Sub: a sine `OscillatorNode` one octave below osc 1 (following its octave and the pitch LFO), at up to `SUB_MAX_GAIN`.
+- Drive: a `WaveShaperNode` (4× oversampled) with a tanh soft-clip curve, `tanh(g·x) / tanh(g)` with `g = DRIVE_MAX_GAIN^amount − 1`, so full scale stays at full scale and quiet parts get squashed up. The signal is scaled down by `DRIVE_HEADROOM` into the shaper and back up after it, so loud resonant peaks aren't hard-clipped. At 0 the shaper has no curve, which passes the signal through untouched.
+- LFO sync: when Sync isn't off, the LFO runs at `tempo / 60 × cycles per beat` (1/4 = 1, 1/8 = 2, 1/8T = 3, …), instead of its Rate. `lfoRateHz(patch)` gives the speed either way. Tempo snaps to whole BPM (parameters can have a `step`). In Free Play the unused one of Rate and Tempo is dimmed, with a note saying why.
 - Loudness: fixed master gain plus RMS-matching of rendered buffers before audio scoring, so volume never biases the score.
 - Avoid clicks: short fade at note start and end.
 - Patches serialise as `{ v, params }` with every parameter stored explicitly. On load, missing parameters take their defaults and unknown ones are dropped.
-- **Engine growth rule**: every parameter added after v1 must default to a neutral value (off / no effect), so existing saved sounds and pack targets sound identical after an engine update.
+- **Engine growth rule**: every parameter added after v1 must default to a neutral value (off / no effect), so existing saved sounds and pack targets sound identical after an engine update. `game/stability.test.ts` fingerprints every Foundations level's rounds, so a change that alters existing rounds (and so dailies and replay codes) fails a test.
 
 ## 6. Round flow
 
@@ -154,12 +168,19 @@ interface Pack {
   version: number;             // bump when content changes
   requires?: {
     packs?: string[];          // packs to complete first
-    engineModules?: string[];  // e.g. 'drive', 'lfo.sync'; pack is hidden if the engine lacks one
+    engineModules?: string[];  // e.g. 'sub', 'drive'; pack is hidden if the engine lacks one
   };
   baseControls: ParamId[];     // unlocked from the start of the pack
   chapters: Chapter[];
-  presets?: SavedSound[];      // factory sounds added to the Free Play library
   daily?: DailyTier[];         // daily challenge tiers this pack offers (§11)
+  presets?: Preset[];          // factory sounds added to the Free Play library (§10)
+}
+
+interface Preset {
+  id: string;                  // unique within the pack; the library id is 'packId/presetId'
+  name: string;
+  tags: string[];
+  patch: Partial<Patch>;       // settings that differ from the defaults
 }
 
 interface DailyTier {
@@ -201,13 +222,13 @@ interface GeneratorTemplate {
 }
 ```
 
-`daily` (`DailyTier[]`: id, title, levelId) lists the pack's daily tiers (§11). `presets` is added to the schema when first used (Milestone 10).
+`daily` (`DailyTier[]`: id, title, levelId) lists the pack's daily tiers (§11). Unlocked controls without a generator entry use their full range, so a level in a pack with many base controls lists every one.
 
 Rules:
 - A level's unlocked controls are the pack's `baseControls` plus the `newControls` of that level and every earlier level in the pack.
 - Progress is keyed by `packId/levelId` strings, never by position, so packs can gain, reorder or drop levels without breaking saves.
 - A level is passed when its average round score reaches its pass mark. Passing a level unlocks the next one; passing a chapter's last level unlocks the next chapter.
-- `game/validation.ts` checks every pack in a unit test: id formats and uniqueness (packs, chapters, levels, templates), known controls, each control introduced once, generators only for unlocked controls, ranges inside parameter ranges (log ranges above 0), valid choices and weights, valid note ranges, rounds and pass marks, and requirements that resolve. Another test checks every shipped level generates fair targets without running out of attempts.
+- `game/validation.ts` checks every pack in a unit test: id formats and uniqueness (packs, chapters, levels, templates), known controls, each control introduced once, generators only for unlocked controls, ranges inside parameter ranges (log ranges above 0), valid choices and weights, valid note ranges, rounds and pass marks, presets (ids, names, valid values) and requirements that resolve. Another test checks every shipped level generates fair targets without running out of attempts.
 - Test fixture packs (`game/fixtures.ts`, not shipped) prove a second pack works with no code changes, including one that requires another.
 - Packs and levels shipped are listed in `content/index.ts`, which also names the templates Free Play's Randomise uses, so no code outside `content/` refers to a specific pack.
 
@@ -230,9 +251,28 @@ Genre-neutral. Note range C3–C5 unless stated.
 
 Daily tiers: **Starter** (level 2: waveform, octave, cutoff), **Basics** (level 3: adds resonance), **Shapes** (level 6: adds the envelopes) and **Full** (level 10: everything). Starter gives new players a daily after about ten rounds.
 
-### 7.3 Expansion packs (after v1, outline only)
+### 7.3 Bass Music pack (Milestone 10)
 
-- **Bass Music**: requires Foundations. Chapters such as sub bass, reese, wobble, stabs and plucks, and a "bass mode" finale built from sub, reese, wobble and pluck templates. Note range C1–C3. Likely needs new engine modules first: drive/distortion and tempo-synced LFO.
+Requires Foundations (every level passed) and the `sub` and `drive` engine modules. Base controls: waveform, octave, cutoff, resonance. Every level fixes the LFO tempo at 140 BPM, shown greyed in the LFO panel so synced wobbles have a beat to follow. Notes are low (C1–C3), so the pack description and intros ask for headphones.
+
+| Chapter | Level | Name | New controls | Notes |
+| --- | --- | --- | --- | --- |
+| Low end | 1 | Sub | sub | C2–C3, so the sub (C1–C2) can be heard |
+| | 2 | Drive | drive | C1–C3; any waveform, sub sometimes |
+| Reese | 3 | Reese | osc 2 detune | C1–C2; saws detuned 10–40 cents, drive and sub sometimes |
+| Wobble | 4 | Tempo sync | LFO target, sync, depth | C1–C2; cutoff wobbles from 1/2 to 1/16 (Rate stays locked) |
+| | 5 | Wobble bass | none | wobble, growl and reese-wobble templates |
+| Stabs and plucks | 6 | Stabs and plucks | filter envelope, amp envelope | C2–C3; short basses with snappy envelopes |
+| Bass mode | 7 | Bass mode | none | everything, from sub bass, reese, wobble, growl, reese wobble and stab templates (`content/bassTypes.ts`) |
+
+Noise and the free LFO rate are never unlocked here: they stay at their defaults.
+
+Daily tiers: **Low end** (level 3: sub, drive, detune) and **Bass mode** (level 7: everything).
+
+Factory presets (in Free Play's library): Clean sub, Warm sub, Driven sine, Reese, Dark reese 174, Wobble 1/4, Triplet growl, Bass stab, Gated sub 1/16. They play an octave down, so they sound like basses on the default keyboard octave.
+
+### 7.4 More packs (outline only)
+
 - **Sub-genre packs** that require Bass Music, e.g. dubstep, drum & bass, UK garage/bassline. Some will need further modules (FM, unison, more filter types).
 - Each pack can ship factory presets, so it adds sounds to Free Play as well as lessons.
 
@@ -243,6 +283,7 @@ For each unlocked **and audible** parameter `p`:
 - **log params**: `d = |log2(mine / target)| / tolerance` (starting tolerances: cutoff 2 octaves, times 3 octaves, LFO rate 2 octaves)
 - **linear params**: `d = |mine − target| / (range × tolerance)` (starting tolerance 0.5)
 - **discrete params**: `d = 0` if equal, else `1`
+- **LFO speed** (`lfo.rate` and `lfo.sync`): the octaves between the speeds you hear (`lfoRateHz`), over the LFO rate tolerance. A free rate that matches a synced one scores as a match, and a synced note length one step off at double speed (1/8 against 1/16) scores 0.5.
 - closeness `c = max(0, 1 − d)`
 
 `paramScore = 100 × weighted mean of c`. Starting weights: waveform 2, cutoff 2, everything else 1. All tolerances and weights live in `engine/constants.ts`.
@@ -256,6 +297,8 @@ Skip a parameter when it can't be heard in the **target**, for example:
 - `amp.release` when the note has already faded out before release
 - `osc2.detune` differences under about 2 cents (a deadband in the distance)
 - waveform differences when cutoff is so low that only the fundamental passes
+- `sub.level` when the sub would be below 25 Hz at the round's note
+- the LFO's speed is scored once, under the control the target uses: `lfo.sync` when the target is synced, `lfo.rate` when it runs free. `lfo.tempo` is never scored on its own (levels fix it anyway).
 
 `lfo.target` is always scored, by what you hear: if the target's LFO is effectively off, yours must be too; otherwise the targets must match. That way adding movement to a still target costs points, and a depth mistake isn't also counted as a target mistake.
 
@@ -266,10 +309,11 @@ Render both patches with `renderPatch` (same note, same length, 44.1 kHz, RMS-ma
 - loudness envelope: mean absolute difference in dB
 - brightness: mean absolute centroid difference in octaves
 - timbre: mean Euclidean MFCC distance
+- low end: how much of each render's energy sits in the 20–40 Hz and 40–80 Hz octave bands (dB of the total, from an 8192-point FFT, floored at −24 dB), mean absolute difference over bands where either side is above the floor. Added for Bass Music: MFCCs and the centroid barely register a sub, so removing one could otherwise score 95+ and get lifted to a pass.
 
 Frames where both sides are quieter than −45 dBFS (after RMS matching) are skipped, so near-silent tails don't dominate. Loudness and timbre use frames where either side makes sound (sound against silence counts as very different); brightness uses frames where both do.
 
-Map each to 0–100 with calibration constants (`AUDIO_CALIBRATION`: full marks up to `perfect`, zero from `zero`) and average them. The hidden **dev calibration page** (open the app with `#calibrate`) renders pairs (identical, slightly off, very off), prints the raw distances and part scores with a summary per group, and plays A and B, so the constants can be tuned by ear. First calibration: identical 100, slight changes mean 90, large changes mean 62 with none reaching 95.
+Map each to 0–100 with calibration constants (`AUDIO_CALIBRATION`: full marks up to `perfect`, zero from `zero`) and average loudness, brightness and timbre. The low end only applies when either sound has one, and can only pull the score down: the score is the lower of the three-part and four-part means, so it catches what the others miss without softening what they heard. The hidden **dev calibration page** (open the app with `#calibrate`) renders pairs (identical, slightly off, very off), prints the raw distances and part scores with a summary per group, and plays A and B, so the constants can be tuned by ear. First calibration: identical 100, slight changes mean 90, large changes mean 62 with none reaching 95. Milestone 10 added Reese and Synced growl sounds and drive, sub and sync changes (91 pairs): identical 100, slight mean 91, large mean 58 with none reaching 95; removing a sub now scores 41–89 (it was 84–98 before the low-end part).
 
 Known limitation: the comparison lines frames up in time, so differences in modulation rate (detune beating, LFO rate) can score lower than they sound, e.g. +4 cents on an already detuned pad.
 
@@ -295,21 +339,21 @@ Sort by impact (`weight × (1 − c)`). Show the top three on the result card; s
 
 The synth as an instrument: no targets, no scores.
 
-- **Controls**: every engine control, regardless of progress (see open questions). Same Knob and Selector components as rounds.
+- **Controls**: every engine control, regardless of progress (see open questions). Same Knob and Selector components as rounds. A control that does nothing in the current patch (LFO Rate while Sync is on, Tempo while it's off) is dimmed but still works, with a note saying why. Selectors with more than five options (LFO sync) wrap into rows of four.
 - **Two ways to audition**:
   - **Play**: a short note (the same length as a round's) of the last note played. Space on desktop. Turns Hold off.
   - **Hold**: keeps notes sounding so knob changes can be heard live. Works like a sustain pedal: while it's on, released keys keep sounding; turning it off releases them. Turned on with nothing playing, it sustains the last note played.
 - **Keyboard**: on-screen keyboard (one octave on phones, two from `KEYBOARD_TWO_OCTAVE_MIN_WIDTH`, octave shift, multi-touch). Desktop: A–K for white keys, W E T Y U for black keys, Z / X for octave down / up, key letters shown on the keys.
 - **Voices**: polyphonic up to `MAX_VOICES` (starting at 8) via `voiceManager.ts`, each note its own `buildVoice`; the oldest releasing voice is stolen first. A **Mono** switch uses last-note priority (glide comes later as an engine module).
 - **Live edits**: knob changes are heard on held notes straight away (see `VoiceHandle.update`).
-- **New** (init patch as a new, unsaved sound), **Randomise**, **Undo** and **Redo** (Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z; a knob drag is one step). Randomise picks one of the sound-type templates (pluck, pad, lead, bass, brass) named by `content/index.ts`.
+- **New** (init patch as a new, unsaved sound), **Randomise**, **Undo** and **Redo** (Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z; a knob drag is one step). Randomise picks one of the sound-type templates named by `content/index.ts`: the general ones (pluck, pad, lead, bass, brass) and the bass music ones (sub bass, reese, wobble, growl, reese wobble, stab). Controls a template doesn't set stay at their defaults, except Tempo, which keeps yours.
 - **Session**: the working sound, its unsaved changes, voice mode and octave are kept across reloads, since mobile browsers often reload backgrounded tabs.
 - **Spectrum**: the same live analyser strip as rounds, at the top of the dock.
 - **Library**:
   - Save, Save as, rename, duplicate, delete (with confirmation), favourite, tags, search, sort by recent or name.
   - Each saved sound: `{ id, name, tags, favourite, createdAt, updatedAt, source, patch }`, where `source` is `user` or `preset:<packId>`.
-  - Factory presets from packs are read-only; saving an edited preset creates a user copy.
-  - **Export / import** the whole library or a single sound as a JSON file, so sounds survive cleared browser data and can move between devices. Imports always become new user sounds; ones already in the library (same name and settings) are skipped.
+  - Factory presets from packs (`Pack.presets`) are read-only; saving an edited preset creates a user copy. They're synced into the library each time Free Play opens: new ones added, changed ones refreshed (keeping favourites), ones no longer shipped removed. They're listed after your own sounds under Recent, without a date, and are available whether or not their pack is unlocked. The Sounds button counts only your own sounds.
+  - **Export / import** the whole library (your own sounds; presets come with the app) or a single sound as a JSON file, so sounds survive cleared browser data and can move between devices. Imports always become new user sounds; ones already in the library (same name and settings) are skipped.
   - Prompt about unsaved changes before loading another sound or starting a new one. Leaving Free Play needs no prompt: the working sound is kept (see Session).
   - If stored library data can't be read, keep a copy of it under a separate key rather than overwriting it.
 
@@ -317,7 +361,7 @@ The synth as an instrument: no targets, no scores.
 
 One new target per tier per day, identical for every player, with no backend.
 
-- **Tiers** come from pack data (`Pack.daily`, §7.1), so packs can add their own daily tiers later. A tier is available once you've passed its level; Foundations offers Starter, Basics, Shapes and Full (§7.2).
+- **Tiers** come from pack data (`Pack.daily`, §7.1), so packs can add their own daily tiers later. A tier is available once you've passed its level; Foundations offers Starter, Basics, Shapes and Full (§7.2), and Bass Music adds Low end and Bass mode (§7.3). The tier tabs wrap onto a second row on phones, which keeps each pack's tiers together. A tier whose pack is still locked says which pack to pass first.
 - **Seed**: a 32-bit FNV-1a hash of `YYYY-MM-DD/packId/tierId`, using the player's local date, so everyone gets the same target on the same day and it rolls over at local midnight. The **daily number** counts from `DAILY_EPOCH` (2026-10-01 is Daily #1), e.g. "Daily #142".
 - **Attempts**: listen as often as you like; up to `DAILY_SUBMITS` submits (3, decided 2026-10-17: tips between submits teach, and the share line shows how many you needed), best one counts. No hints. Score and tips show after each submit, but the reveal table and the sound type only appear once you've used all submits, scored `DAILY_FINISH_SCORE` (97) or more, or pressed **Reveal answer**, so retries stay honest. Submit stays disabled until the sound changes, so a submit can't be wasted by accident. Submits used and the best score are saved after each submit, so a reload continues the daily.
 - **Streak**: consecutive days with at least one daily tier submitted **on its own date**. Whether a daily counts is fixed when it's first saved, so finishing it after midnight still counts for its date. Today not played yet doesn't break the streak until the day is over. Worked out from the saved daily results rather than stored separately. Current and best streak show on Home and on the daily screen.
@@ -337,9 +381,9 @@ One new target per tier per day, identical for every player, with no backend.
 - **Home**: continue where you left off (a level run in progress, else the next unpassed level), today's daily (number, streak, each tier's status, or which level unlocks it), packs with progress and stars, and "your weakest controls" with a Practise button each.
 - **Pack screen**: chapters and levels, each showing its new controls and whether it's locked, new, in progress or passed (best average and stars).
 - **Level run**: the level's rounds one after another ("Round 2 of 5" with progress dots), then a summary: average, stars, pass or not, each round's score, and Next level / Play again / All levels.
-- **Knobs**: vertical drag, fine adjust with a modifier or two-finger drag, double-tap to reset, tap value to type a number; units shown (Hz, s, %, cents).
+- **Knobs**: vertical drag, fine adjust with a modifier or two-finger drag, double-tap to reset, tap value to type a number; units shown (Hz, s, %, cents, BPM).
 - **Spectrum**:
-  - **Live**: an `AnalyserNode` tapping the master bus (FFT 4096) feeds a canvas strip at the top of the sticky dock in rounds and Free Play. It shows 30 Hz–16 kHz on a log axis with 100 / 1k / 10k grid lines, coloured by what you hear (`--target` teal, `--mine` orange). A × hides it and "Show spectrum" brings it back; the choice is remembered per browser. In an unfinished daily the target's spectrum is masked ("Target spectrum hidden until you finish") so the daily stays an ear test; yours still shows.
+  - **Live**: an `AnalyserNode` tapping the master bus (FFT 4096) feeds a canvas strip at the top of the sticky dock in rounds and Free Play. It shows 20 Hz–16 kHz on a log axis (down to 20 Hz since Bass Music, so a sub shows) with 100 / 1k / 10k grid lines, coloured by what you hear (`--target` teal, `--mine` orange). A × hides it and "Show spectrum" brings it back; the choice is remembered per browser. In an unfinished daily the target's spectrum is masked ("Target spectrum hidden until you finish") so the daily stays an ear test; yours still shows.
   - **Result overlay**: the offline renders made at Submit also give each sound's average spectrum, volume-matched like the audio score, in 96 log-spaced bands (interpolated in dB below one FFT bin, so curves stay smooth). Target and yours are drawn on one chart with a key, and a caption compares their spectral centres ("Spectral centre: target 894 Hz, yours 3.62 kHz, so yours is brighter."), which is how feedback ties to the spectrum. In the daily it appears with the reveal table, once you've finished.
 - Desktop shortcuts in rounds: Space = play target, M = play mine, B = A/B, Enter = submit (then next round). Tab is left for keyboard navigation. Free Play keyboard mapping in §10.
 
@@ -364,7 +408,7 @@ Build in order. Each milestone ends with the app running, `npm run test` and `np
 7. **Daily challenge**: tiers from pack data, date-based seeds, submit limit, streaks, share text, archive. Tests: same date gives the same target; the next date gives a different one; streak rules across missed days and month/year boundaries.
 8. **Spectrum views**: live analyser and result overlay.
 9. **PWA and mobile polish**: manifest, icons, offline cache, update prompt, install card, deploy configs (GitHub Pages workflow, `netlify.toml`; `DIAL_IN_BASE` for sub-paths), and an iOS checklist ([docs/ios-testing.md](docs/ios-testing.md)) to run on a real device after deploying.
-10. **First expansion pack** (probably Bass Music): add the engine modules it needs (with neutral defaults), then its chapters, levels, presets and daily tiers. Proves the pack system end to end.
+10. **First expansion pack**: Bass Music (§7.3). Engine modules with neutral defaults: sub oscillator, drive and tempo-synced LFO (§5). Scoring for them, including a low-end part in the audio score (§8). Factory presets in the Free Play library, bass templates for Randomise, two daily tiers. A fingerprint test proves Foundations rounds didn't change.
 11. **Stretch**: sample-based targets (audio-only scoring), Web MIDI keyboard input, Capacitor native builds (with daily reminder notifications), and anything promoted from the idea backlog (§17).
 
 ## 15. Conventions
@@ -377,14 +421,14 @@ Build in order. Each milestone ends with the app running, `npm run test` and `np
 ## 16. Open questions
 
 - Should hints be allowed on scored level rounds, or only in Practice?
-- Tempo-synced LFO rates (1/16 to 1 bar) instead of Hz? Probably needed for the Bass Music pack.
 - Is a second filter type (high-pass, band-pass) worth adding before v1 ships?
 - Free Play: every control from day one, or only the ones you've learned (with a "show all" switch)? All is more useful as a synth; learned-only is less overwhelming for beginners.
 - Free Play polyphony: 8-voice poly with a Mono switch (as above), or mono only to keep v1 simpler?
-- Pack prerequisites: must the whole parent pack be passed, or only specific levels?
+- Pack prerequisites: must the whole parent pack be passed, or only specific levels? Bass Music currently needs every Foundations level passed (10 levels, about 50 rounds). Earlier access (e.g. after Movement) would mean a `requires.levels` field.
 - Distribution: will packs always ship inside the app, or might they be downloaded or sold separately one day? v1 compiles them in; keeping them JSON-serialisable leaves both options open.
 - Audience: still a personal tool, or heading for a public release? That decides how much onboarding, accessibility and sharing polish v1 needs.
-- Audio score and modulation: add a phase-insensitive measure (e.g. compare the spread of loudness rather than frame by frame) so detune and LFO-rate differences aren't over-penalised? Matters more once the Bass Music pack leans on reese and wobble sounds.
+- Audio score and modulation: add a phase-insensitive measure (e.g. compare the spread of loudness rather than frame by frame) so detune and LFO-rate differences aren't over-penalised? Bass Music leans on reese and wobble sounds, so this matters more now: in calibration, +4 cents on the Synced growl scores 71 on sound.
+- Level focus: a level can be passed while ignoring its new control (e.g. Sub: leaving the sub at 0 still averages about 80, as leaving resonance alone does in Foundations' Resonance level). Should a level's new controls count extra in its own rounds?
 
 ## 17. Idea backlog (proposed, not committed)
 
@@ -413,4 +457,4 @@ Promote, park or delete. ★ = suggested first.
 
 **More packs**
 - Keys and plucks, Pads and atmospheres, Leads, Acid (303-style: saw/square, resonance, glide, accent), Synthwave, Game SFX (lasers, risers, zaps; needs a pitch envelope).
-- Engine modules these would need, roughly in order of value: drive/distortion, tempo-synced LFO, unison and stereo spread, sub oscillator, glide, more filter types, pitch envelope, FM, and effects (chorus, delay, reverb; these need care in audio scoring).
+- Engine modules these would need, roughly in order of value (drive, tempo-synced LFO and the sub oscillator arrived with Bass Music): unison and stereo spread, glide, more filter types, pitch envelope (for 808s), FM, and effects (chorus, delay, reverb; these need care in audio scoring).

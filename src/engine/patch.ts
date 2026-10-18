@@ -26,9 +26,11 @@ export const DEFAULT_PATCH: Readonly<Patch> = Object.freeze({
   'osc.wave': PARAMS['osc.wave'].default,
   'osc.octave': PARAMS['osc.octave'].default,
   'osc2.detune': PARAMS['osc2.detune'].default,
+  'sub.level': PARAMS['sub.level'].default,
   'noise.level': PARAMS['noise.level'].default,
   'filter.cutoff': PARAMS['filter.cutoff'].default,
   'filter.resonance': PARAMS['filter.resonance'].default,
+  'drive.amount': PARAMS['drive.amount'].default,
   'fenv.amount': PARAMS['fenv.amount'].default,
   'fenv.decay': PARAMS['fenv.decay'].default,
   'amp.attack': PARAMS['amp.attack'].default,
@@ -36,7 +38,9 @@ export const DEFAULT_PATCH: Readonly<Patch> = Object.freeze({
   'amp.sustain': PARAMS['amp.sustain'].default,
   'amp.release': PARAMS['amp.release'].default,
   'lfo.target': PARAMS['lfo.target'].default,
+  'lfo.sync': PARAMS['lfo.sync'].default,
   'lfo.rate': PARAMS['lfo.rate'].default,
+  'lfo.tempo': PARAMS['lfo.tempo'].default,
   'lfo.depth': PARAMS['lfo.depth'].default,
 });
 
@@ -61,6 +65,7 @@ export function patchFromRecord(record: Readonly<Record<string, unknown>>, fallb
   patch['osc.wave'] = pickOption(PARAMS['osc.wave'].options, record['osc.wave']) ?? fallback['osc.wave'];
   patch['osc.octave'] = pickOption(PARAMS['osc.octave'].options, record['osc.octave']) ?? fallback['osc.octave'];
   patch['lfo.target'] = pickOption(PARAMS['lfo.target'].options, record['lfo.target']) ?? fallback['lfo.target'];
+  patch['lfo.sync'] = pickOption(PARAMS['lfo.sync'].options, record['lfo.sync']) ?? fallback['lfo.sync'];
   return patch;
 }
 

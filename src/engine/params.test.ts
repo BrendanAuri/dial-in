@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { CONTINUOUS_PARAM_IDS, MODULES, PARAMS, PARAM_IDS, paramsInModule } from './params';
+import { CONTINUOUS_PARAM_IDS, MODULES, PARAMS, PARAM_IDS, isParamInUse, paramsInModule } from './params';
+import { DEFAULT_PATCH } from './patch';
 
 describe('parameter schema', () => {
   it('lists every parameter exactly once', () => {
@@ -45,5 +46,17 @@ describe('parameter schema', () => {
     expect(PARAMS['fenv.amount'].default).toBe(0);
     expect(PARAMS['lfo.target'].default).toBe('off');
     expect(PARAMS['lfo.depth'].default).toBe(0);
+    expect(PARAMS['sub.level'].default).toBe(0);
+    expect(PARAMS['drive.amount'].default).toBe(0);
+    expect(PARAMS['lfo.sync'].default).toBe('off');
+  });
+
+  it('marks Rate as unused while synced, and Tempo as unused while free', () => {
+    expect(isParamInUse('lfo.rate', DEFAULT_PATCH)).toBe(true);
+    expect(isParamInUse('lfo.tempo', DEFAULT_PATCH)).toBe(false);
+    const synced = { ...DEFAULT_PATCH, 'lfo.sync': '1/8' as const };
+    expect(isParamInUse('lfo.rate', synced)).toBe(false);
+    expect(isParamInUse('lfo.tempo', synced)).toBe(true);
+    expect(isParamInUse('filter.cutoff', synced)).toBe(true);
   });
 });

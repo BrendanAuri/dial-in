@@ -8,10 +8,11 @@ export function clamp01(n: number): number {
   return Math.min(1, Math.max(0, n));
 }
 
-/** Clamp a value into the parameter's range. Non-finite values become the default. */
+/** Clamp a value into the parameter's range, snapped to its step if it has one. Non-finite values become the default. */
 export function clampToRange(def: ContinuousParamDef, value: number): number {
   if (!Number.isFinite(value)) return def.default;
-  return Math.min(def.max, Math.max(def.min, value));
+  const snapped = def.step === undefined ? value : Math.round(value / def.step) * def.step;
+  return Math.min(def.max, Math.max(def.min, snapped));
 }
 
 /** Value → 0–1 position. Log parameters are evenly spaced in octaves. */

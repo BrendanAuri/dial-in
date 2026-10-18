@@ -93,3 +93,28 @@ describe('scoreParams', () => {
     expect(scoreParams(open, { ...open, 'filter.resonance': 1 }, ['filter.resonance'], context).score).toBe(100);
   });
 });
+
+describe('LFO speed', () => {
+  const synced: Patch = { ...target, 'lfo.sync': '1/8', 'lfo.tempo': 120 };
+
+  it('compares what you hear, however you set it', () => {
+    // 1/8 at 120 BPM is 4 Hz, so a free 4 Hz LFO is a perfect match.
+    expect(closeness('lfo.sync', { ...synced, 'lfo.sync': 'off', 'lfo.rate': 4 }, synced)).toBe(1);
+    expect(closeness('lfo.sync', synced, synced)).toBe(1);
+  });
+
+  it('counts each note length off by its speed', () => {
+    // 1/16 is twice as fast as 1/8: one octave, half the tolerance.
+    expect(closeness('lfo.sync', { ...synced, 'lfo.sync': '1/16' }, synced)).toBeCloseTo(0.5);
+    expect(closeness('lfo.sync', { ...synced, 'lfo.sync': '1/8T' }, synced)).toBeCloseTo(1 - Math.log2(1.5) / 2);
+  });
+
+  it('scores the speed once, under the control the target uses', () => {
+    const scored = (patch: Patch) =>
+      scoreParams(patch, patch, ['lfo.sync', 'lfo.rate', 'lfo.tempo'], context)
+        .controls.filter((c) => c.inaudible === null)
+        .map((c) => c.id);
+    expect(scored(synced)).toEqual(['lfo.sync']);
+    expect(scored(target)).toEqual(['lfo.rate']);
+  });
+});

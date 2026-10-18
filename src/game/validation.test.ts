@@ -3,7 +3,7 @@ import { PACKS } from '../content';
 import type { Level, Pack } from '../content/schema';
 import { PARAM_IDS } from '../engine/params';
 import { FIXTURE_PACK, SEQUEL_PACK } from './fixtures';
-import { packLevels, unlockedControls } from './packs';
+import { packLevels, packPresets, unlockedControls } from './packs';
 import { validatePack, validatePacks } from './validation';
 
 const level: Level = {
@@ -35,10 +35,20 @@ describe('shipped content', () => {
     expect(validatePacks(PACKS)).toEqual([]);
   });
 
-  it('unlocks every control by the end of Foundations', () => {
-    const foundations = PACKS.find((p) => p.id === 'foundations');
-    const last = foundations ? packLevels(foundations).at(-1) : undefined;
-    expect(foundations && last ? unlockedControls(foundations, last.id) : []).toEqual(PARAM_IDS);
+  it('teaches every control in some pack, except tempo, which levels fix', () => {
+    const taught = new Set(
+      PACKS.flatMap((pack) => {
+        const last = packLevels(pack).at(-1);
+        return last ? unlockedControls(pack, last.id) : [];
+      }),
+    );
+    expect(PARAM_IDS.filter((id) => !taught.has(id))).toEqual(['lfo.tempo']);
+  });
+
+  it('turns pack presets into library sounds with unique ids', () => {
+    const presets = packPresets(PACKS);
+    expect(presets.length).toBeGreaterThan(0);
+    expect(new Set(presets.map((p) => p.id)).size).toBe(presets.length);
   });
 
   it('opens the first Foundations daily after level 2', () => {
@@ -111,6 +121,24 @@ describe('validatePack', () => {
     expect(errorsFor(packWith({}, { requires: { packs: ['nope'], engineModules: ['warp-drive'] } }))).toEqual([
       expect.stringMatching(/unknown pack "nope"/),
       expect.stringMatching(/unknown engine module "warp-drive"/),
+    ]);
+  });
+
+  it('checks presets', () => {
+    const pack = packWith(
+      {},
+      {
+        presets: [
+          { id: 'a', name: 'A', tags: [], patch: { 'osc.wave': 'saw' } },
+          { id: 'a', name: ' ', tags: [], patch: { 'lfo.sync': '1/5' as never, 'fm.ratio': 2 } as never },
+        ],
+      },
+    );
+    expect(errorsFor(pack)).toEqual([
+      expect.stringMatching(/preset id "a" is used twice/),
+      expect.stringMatching(/preset needs a name/),
+      expect.stringMatching(/preset lfo.sync value isn't valid/),
+      expect.stringMatching(/unknown preset control "fm.ratio"/),
     ]);
   });
 

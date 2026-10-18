@@ -2,6 +2,8 @@
 import type { Level, Pack } from '../content/schema';
 import { PACKS } from '../content';
 import { PARAM_IDS, type ParamId } from '../engine/params';
+import { patchFromRecord } from '../engine/patch';
+import type { PresetSound } from '../library/library';
 
 export function getPack(id: string, packs: readonly Pack[] = PACKS): Pack | undefined {
   return packs.find((pack) => pack.id === id);
@@ -44,4 +46,17 @@ export function unlockedControls(pack: Pack, levelId: string): ParamId[] {
     if (level.id === levelId) break;
   }
   return PARAM_IDS.filter((id) => unlocked.has(id));
+}
+
+/** Every pack's factory sounds, as library entries with ids like "bass/reese". */
+export function packPresets(packs: readonly Pack[] = PACKS): PresetSound[] {
+  return packs.flatMap((pack) =>
+    (pack.presets ?? []).map((preset) => ({
+      id: `${pack.id}/${preset.id}`,
+      source: `preset:${pack.id}` as const,
+      name: preset.name,
+      tags: preset.tags,
+      patch: patchFromRecord({ ...preset.patch }),
+    })),
+  );
 }

@@ -29,6 +29,8 @@ export function formatValue(def: ContinuousParamDef, value: number): string {
       return `${value.toFixed(1)} cents`;
     case 'oct':
       return `${value.toFixed(2)} oct`;
+    case 'BPM':
+      return `${Math.round(value)} BPM`;
   }
 }
 

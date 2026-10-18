@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { FREE_PLAY_TEMPLATES } from '../../content';
 import {
   DEFAULT_HOLD_TIME,
   DEFAULT_KEYBOARD_OCTAVE,
@@ -17,6 +18,7 @@ import type { ParamId, Patch } from '../../engine/params';
 import { DEFAULT_PATCH, patchesEqual, setParam } from '../../engine/patch';
 import { buildVoice } from '../../engine/voice';
 import { VoiceManager, type VoiceMode } from '../../engine/voiceManager';
+import { packPresets } from '../../game/packs';
 import { randomPatch } from '../../game/randomPatch';
 import { createRng, randomSeed } from '../../game/rng';
 import { newId } from '../../library/ids';
@@ -33,8 +35,10 @@ import {
   markExported,
   parseSoundFile,
   soundToFile,
+  syncPresets,
   toggleFavourite,
   updateSound,
+  userSounds,
   type Library,
   type SavedSound,
 } from '../../library/library';
@@ -90,7 +94,10 @@ interface FreePlayProps {
 /** The synth as an instrument: every control, a keyboard and a library of saved sounds. */
 export function FreePlay({ audio }: FreePlayProps) {
   const [store] = useState(browserStore);
-  const [loaded] = useState(() => loadLibrary(store, Date.now()));
+  const [loaded] = useState(() => {
+    const stored = loadLibrary(store, Date.now());
+    return { ...stored, library: syncPresets(stored.library, packPresets()) };
+  });
   const [session] = useState(() => loadSession(store));
 
   const [history, setHistory] = useState<History<Patch>>(() =>
@@ -350,7 +357,12 @@ export function FreePlay({ audio }: FreePlayProps) {
     });
   }, [confirmDiscard, replacePatch]);
 
-  const onRandomise = useCallback(() => replacePatch(randomPatch(createRng(randomSeed()))), [replacePatch]);
+  // Randomise keeps your tempo, so synced sounds stay in time with what you're making.
+  const tempo = patch['lfo.tempo'];
+  const onRandomise = useCallback(
+    () => replacePatch(randomPatch(createRng(randomSeed()), FREE_PLAY_TEMPLATES, { ...DEFAULT_PATCH, 'lfo.tempo': tempo })),
+    [replacePatch, tempo],
+  );
 
   const onSave = useCallback(() => {
     const sound = current.id ? findSound(libraryRef.current, current.id) : undefined;
@@ -472,6 +484,7 @@ export function FreePlay({ audio }: FreePlayProps) {
 
   const activeNotes = new Set([...pressed, ...heldNotes]);
   const editing = dialog?.kind === 'edit' ? findSound(library, dialog.id) : undefined;
+  const userCount = userSounds(library).length;
 
   return (
     <div className="screen free-play">
@@ -505,7 +518,7 @@ export function FreePlay({ audio }: FreePlayProps) {
           Save
         </button>
         <button type="button" className="button" onClick={() => setLibraryOpen(true)}>
-          Sounds{library.sounds.length > 0 ? ` (${library.sounds.length})` : ''}
+          Sounds{userCount > 0 ? ` (${userCount})` : ''}
         </button>
       </div>
 

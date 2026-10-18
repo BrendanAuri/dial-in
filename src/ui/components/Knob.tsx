@@ -23,6 +23,8 @@ interface KnobProps {
   readonly onChange: (value: number) => void;
   /** Locked: shown greyed out and can't be changed. */
   readonly disabled?: boolean;
+  /** Why the knob does nothing in the current patch, if it doesn't. It's dimmed but still works. */
+  readonly unused?: string;
 }
 
 /** Point on the knob circle; 0° is straight up, positive is clockwise. */
@@ -42,7 +44,7 @@ function arcPath(fromDegrees: number, toDegrees: number): string {
  * Rotary control. Drag vertically (Shift for fine), double-tap to reset,
  * arrow keys / Page Up / Page Down / Home / End when focused.
  */
-export function Knob({ def, value, onChange, disabled = false }: KnobProps) {
+export function Knob({ def, value, onChange, disabled = false, unused }: KnobProps) {
   const position = toNormalised(def, value);
   const drag = useRef<{ lastY: number; position: number } | null>(null);
   const lastTap = useRef(-Infinity);
@@ -106,7 +108,7 @@ export function Knob({ def, value, onChange, disabled = false }: KnobProps) {
     : { onPointerDown, onPointerMove, onPointerUp: endDrag, onPointerCancel: endDrag, onKeyDown };
 
   return (
-    <div className={disabled ? 'knob disabled' : 'knob'}>
+    <div className={['knob', disabled ? 'disabled' : null, unused ? 'unused' : null].filter(Boolean).join(' ')} title={unused}>
       <div
         className="knob-dial"
         role="slider"
@@ -116,7 +118,7 @@ export function Knob({ def, value, onChange, disabled = false }: KnobProps) {
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={Math.round(position * 100)}
-        aria-valuetext={text}
+        aria-valuetext={unused ? `${text}, ${unused.toLowerCase()}` : text}
         {...handlers}
       >
         <svg viewBox={`0 0 ${VIEWBOX} ${VIEWBOX}`} aria-hidden="true">

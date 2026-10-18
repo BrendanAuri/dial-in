@@ -11,8 +11,10 @@ import {
   LFO_AMP_MAX_DEPTH,
   LFO_CUTOFF_DEPTH_OCTAVES,
   LFO_PITCH_DEPTH_SEMITONES,
+  LFO_SYNC_CYCLES_PER_BEAT,
+  SECONDS_PER_MINUTE,
 } from './constants';
-import type { LfoTarget } from './params';
+import type { LfoTarget, Patch } from './params';
 
 export interface AmpEnvelope {
   readonly attack: number;
@@ -53,6 +55,16 @@ export function filterEnvPeakOctaves(cutoff: number, amount: number, maxCutoff: 
 
 export function octavesToCents(octaves: number): number {
   return octaves * CENTS_PER_OCTAVE;
+}
+
+/**
+ * The LFO's speed in Hz: its Rate when Sync is off, otherwise the synced
+ * note length at the patch's tempo (1/8 at 120 BPM is 4 Hz).
+ */
+export function lfoRateHz(patch: Readonly<Pick<Patch, 'lfo.sync' | 'lfo.rate' | 'lfo.tempo'>>): number {
+  const sync = patch['lfo.sync'];
+  if (sync === 'off') return patch['lfo.rate'];
+  return (patch['lfo.tempo'] / SECONDS_PER_MINUTE) * LFO_SYNC_CYCLES_PER_BEAT[sync];
 }
 
 /**

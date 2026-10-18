@@ -8,6 +8,8 @@ import {
   RELEASE_MIN_AUDIBLE_LEVEL,
   RESONANCE_AUDIBLE_MAX_CUTOFF,
   SEMITONES_PER_OCTAVE,
+  SUB_MIN_AUDIBLE_HZ,
+  SUB_OCTAVES_BELOW,
   SUSTAIN_FULL,
   WAVEFORM_MIN_CUTOFF_RATIO,
 } from '../engine/constants';
@@ -69,13 +71,26 @@ export function inaudibleReason(id: ParamId, target: Readonly<Patch>, context: L
         ? "The note has faded out before it's released."
         : null;
     }
-    case 'lfo.rate':
+    case 'sub.level':
+      return fundamentalHz(target, context.note) / 2 ** SUB_OCTAVES_BELOW < SUB_MIN_AUDIBLE_HZ
+        ? 'At this note the sub is too low to hear.'
+        : null;
     case 'lfo.depth':
       return lfoOff ? "The target's LFO isn't moving anything." : null;
+    // The LFO's speed is scored once, under whichever control the target uses.
+    case 'lfo.rate':
+      if (lfoOff) return "The target's LFO isn't moving anything.";
+      return target['lfo.sync'] === 'off' ? null : "The target's LFO is synced to the tempo, so its speed is scored under LFO sync.";
+    case 'lfo.sync':
+      if (lfoOff) return "The target's LFO isn't moving anything.";
+      return target['lfo.sync'] === 'off' ? "The target's LFO runs free, so its speed is scored under LFO rate." : null;
+    case 'lfo.tempo':
+      return "Tempo isn't scored on its own: it sets a synced LFO's speed, which is.";
     case 'osc.octave':
     case 'osc2.detune':
     case 'noise.level':
     case 'filter.cutoff':
+    case 'drive.amount':
     case 'amp.attack':
     case 'lfo.target':
       return null;

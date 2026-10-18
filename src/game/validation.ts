@@ -1,10 +1,10 @@
 /**
  * Content checks, run over every shipped pack in a unit test: ids, known
  * controls, generator ranges inside parameter ranges, note ranges,
- * and requirements that resolve.
+ * presets, and requirements that resolve.
  */
 import type { GeneratorParams, Level, Pack } from '../content/schema';
-import { MODULES, PARAMS, PARAM_IDS, type ParamId } from '../engine/params';
+import { MODULES, PARAMS, PARAM_IDS, type ParamId, type Patch } from '../engine/params';
 import { noteNameToMidi } from '../engine/notes';
 import { setParam, DEFAULT_PATCH } from '../engine/patch';
 import { unlockedControls } from './packs';
@@ -26,6 +26,15 @@ function checkNoteRange(range: readonly [string, string], where: string, errors:
     if (noteNameToMidi(range[0]) > noteNameToMidi(range[1])) errors.push(`${where}: note range is backwards`);
   } catch {
     errors.push(`${where}: note range ${range.join('–')} isn't valid`);
+  }
+}
+
+/** Every key must be a control and every value valid for it. */
+function checkPatchValues(values: Partial<Patch>, where: string, what: string, errors: string[]): void {
+  for (const [key, value] of Object.entries(values)) {
+    const id = asParamId(key);
+    if (!id) errors.push(`${where}: unknown ${what} control "${key}"`);
+    else if (setParam(DEFAULT_PATCH, id, value)[id] !== value) errors.push(`${where}: ${what} ${id} value isn't valid`);
   }
 }
 
@@ -77,11 +86,7 @@ function checkLevel(pack: Pack, level: Level, errors: string[]): void {
   if (!ITEM_ID.test(level.id)) errors.push(`${where}: level id must be lower case letters, digits and dashes`);
   if (level.title.trim() === '' || level.intro.trim() === '') errors.push(`${where}: needs a title and an intro`);
   for (const id of level.newControls) if (!asParamId(id)) errors.push(`${where}: unknown new control "${id}"`);
-  for (const [key, value] of Object.entries(level.fixed)) {
-    const id = asParamId(key);
-    if (!id) errors.push(`${where}: unknown fixed control "${key}"`);
-    else if (setParam(DEFAULT_PATCH, id, value)[id] !== value) errors.push(`${where}: fixed ${id} value isn't valid`);
-  }
+  checkPatchValues(level.fixed, where, 'fixed', errors);
   const unlocked = new Set(unlockedControls(pack, level.id));
   checkGenerators(level.generator.params, unlocked, where, errors);
   const templates = level.generator.templates ?? [];
@@ -130,6 +135,14 @@ export function validatePack(pack: Pack, packs: readonly Pack[]): string[] {
   for (const tier of tiers) {
     if (!ITEM_ID.test(tier.id)) errors.push(`${where}: daily tier id "${tier.id}" must be lower case letters, digits and dashes`);
     if (!levels.some((l) => l.id === tier.levelId)) errors.push(`${where}: daily tier "${tier.id}" uses unknown level "${tier.levelId}"`);
+  }
+  const presets = pack.presets ?? [];
+  for (const id of duplicates(presets.map((p) => p.id))) errors.push(`${where}: preset id "${id}" is used twice`);
+  for (const preset of presets) {
+    const at = `${where}#${preset.id}`;
+    if (!ITEM_ID.test(preset.id)) errors.push(`${at}: preset id must be lower case letters, digits and dashes`);
+    if (preset.name.trim() === '') errors.push(`${at}: preset needs a name`);
+    checkPatchValues(preset.patch, at, 'preset', errors);
   }
   return errors;
 }

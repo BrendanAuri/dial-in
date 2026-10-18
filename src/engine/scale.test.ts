@@ -38,14 +38,21 @@ describe('round trips', () => {
   it('returns the same value for every continuous parameter', () => {
     for (const id of CONTINUOUS_PARAM_IDS) {
       const def = PARAMS[id];
+      // Stepped controls snap, so they come back to within half a step.
+      const slack = def.step === undefined ? 1e-9 : def.step / (2 * (def.max - def.min));
       for (const n of [0, 0.1, 0.33, 0.5, 0.77, 1]) {
-        expect(toNormalised(def, fromNormalised(def, n))).toBeCloseTo(n, 9);
+        expect(Math.abs(toNormalised(def, fromNormalised(def, n)) - n), id).toBeLessThanOrEqual(slack);
       }
     }
   });
 });
 
 describe('clamping', () => {
+  it('snaps stepped controls to their step', () => {
+    expect(clampToRange(PARAMS['lfo.tempo'], 139.6)).toBe(140);
+    expect(fromNormalised(PARAMS['lfo.tempo'], 0.5)).toBe(130);
+  });
+
   it('clamps positions outside 0–1', () => {
     expect(clamp01(-0.5)).toBe(0);
     expect(clamp01(1.5)).toBe(1);

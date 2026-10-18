@@ -15,7 +15,8 @@ import {
   streaks,
   type DailyTierRef,
 } from '../../game/daily';
-import { recordRound } from '../../game/progress';
+import { getPack } from '../../game/packs';
+import { isPackUnlocked, recordRound } from '../../game/progress';
 import { starsFor } from '../../scoring/finalScore';
 import type { RoundResult } from '../../scoring/scoreRound';
 import type { LiveAudio } from '../audio';
@@ -215,17 +216,31 @@ function DailyBody(props: DailyBodyProps) {
   const share = record?.finished ? shareText(date, tier.title, record, DAILY_SUBMITS) : null;
 
   if (!isTierAvailable(progress, dailyRef)) {
+    // A tier from a pack that's still locked points at the pack it needs first.
+    const needed = isPackUnlocked(progress, pack, PACKS)
+      ? null
+      : (pack.requires?.packs ?? []).map((id) => getPack(id)).find((p) => p !== undefined);
     return (
       <div className="card">
-        <p>
-          Pass <strong>{level.title}</strong> to unlock the {tier.title} daily.
-        </p>
+        {needed ? (
+          <p>
+            The {tier.title} daily is part of {pack.title}. Pass <strong>{needed.title}</strong> to unlock it.
+          </p>
+        ) : (
+          <p>
+            Pass <strong>{level.title}</strong> to unlock the {tier.title} daily.
+          </p>
+        )}
         <button
           type="button"
           className="button primary"
-          onClick={() => props.navigate({ name: 'level', packId: pack.id, levelId: level.id })}
+          onClick={() =>
+            props.navigate(
+              needed ? { name: 'pack', packId: needed.id } : { name: 'level', packId: pack.id, levelId: level.id },
+            )
+          }
         >
-          Go to {level.title}
+          Go to {needed ? needed.title : level.title}
         </button>
       </div>
     );

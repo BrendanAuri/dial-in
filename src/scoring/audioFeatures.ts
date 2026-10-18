@@ -6,7 +6,14 @@
  * Meyda's per-frame overhead made a round's scoring take over a second.
  * The tests check these numbers against Meyda itself.
  */
-import { FEATURE_BUFFER_SIZE, FEATURE_HOP_SIZE, MFCC_COEFFICIENTS } from '../engine/constants';
+import {
+  FEATURE_BUFFER_SIZE,
+  FEATURE_HOP_SIZE,
+  LOW_END_BAND_EDGES_HZ,
+  LOW_END_FFT_SIZE,
+  LOW_END_FLOOR_DB,
+  MFCC_COEFFICIENTS,
+} from '../engine/constants';
 
 /** Mel bands feeding the MFCCs (Meyda's default). */
 const MEL_BANDS = 26;
@@ -188,18 +195,23 @@ function analyseFrame(frame: Float32Array, t: Tables, re: Float64Array, im: Floa
 }
 
 /**
- * Mean power of each FFT bin (0 … FEATURE_BUFFER_SIZE / 2 − 1) across every
- * frame, using the same window and hop as the features. For the result
- * overlay's spectrum.
+ * Mean power of each FFT bin (0 … size / 2 − 1) across every frame. By
+ * default it uses the same window and hop as the features, as the result
+ * overlay's spectrum does.
  */
-export function averagePowerSpectrum(samples: Float32Array, sampleRate: number): Float64Array {
-  const t = getTables(FEATURE_BUFFER_SIZE, sampleRate);
+export function averagePowerSpectrum(
+  samples: Float32Array,
+  sampleRate: number,
+  size: number = FEATURE_BUFFER_SIZE,
+  hop: number = FEATURE_HOP_SIZE,
+): Float64Array {
+  const t = getTables(size, sampleRate);
   const re = new Float64Array(t.size);
   const im = new Float64Array(t.size);
   const bins = t.size / 2;
   const sum = new Float64Array(bins);
   let frames = 0;
-  for (let start = 0; start + t.size <= samples.length; start += FEATURE_HOP_SIZE) {
+  for (let start = 0; start + t.size <= samples.length; start += hop) {
     for (let i = 0; i < t.size; i++) {
       re[i] = (samples[start + i] ?? 0) * (t.window[i] ?? 0);
       im[i] = 0;
@@ -210,6 +222,27 @@ export function averagePowerSpectrum(samples: Float32Array, sampleRate: number):
   }
   if (frames > 0) for (let k = 0; k < bins; k++) sum[k] = (sum[k] ?? 0) / frames;
   return sum;
+}
+
+/**
+ * How much of the sound's energy sits in each low octave band
+ * (LOW_END_BAND_EDGES_HZ), in dB of the total, floored at LOW_END_FLOOR_DB.
+ * Every band is at the floor for silence.
+ */
+export function lowEndLevels(samples: Float32Array, sampleRate: number): number[] {
+  const power = averagePowerSpectrum(samples, sampleRate, LOW_END_FFT_SIZE, LOW_END_FFT_SIZE / 2);
+  const hzPerBin = sampleRate / LOW_END_FFT_SIZE;
+  const total = power.reduce((sum, p) => sum + p, 0);
+  const levels: number[] = [];
+  for (let band = 0; band + 1 < LOW_END_BAND_EDGES_HZ.length; band++) {
+    const low = LOW_END_BAND_EDGES_HZ[band] ?? 0;
+    const high = LOW_END_BAND_EDGES_HZ[band + 1] ?? 0;
+    let sum = 0;
+    for (let k = Math.ceil(low / hzPerBin); k * hzPerBin < high && k < power.length; k++) sum += power[k] ?? 0;
+    const db = total > 0 && sum > 0 ? 10 * Math.log10(sum / total) : LOW_END_FLOOR_DB;
+    levels.push(Math.max(LOW_END_FLOOR_DB, db));
+  }
+  return levels;
 }
 
 /** Features of a single FEATURE_BUFFER_SIZE frame (exposed for tests). */

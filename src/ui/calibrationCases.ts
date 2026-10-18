@@ -3,7 +3,7 @@
  * itself, with small changes and with big ones. Identical pairs should score
  * 100, slight ones high, large ones low.
  */
-import type { Patch } from '../engine/params';
+import { LFO_SYNCS, type Patch } from '../engine/params';
 import { DEFAULT_PATCH, setParam } from '../engine/patch';
 
 export type CaseKind = 'identical' | 'slight' | 'large';
@@ -54,9 +54,36 @@ const BASES: readonly { readonly name: string; readonly patch: Patch }[] = [
       'lfo.depth': 0.5,
     },
   },
+  {
+    name: 'Reese',
+    patch: { ...DEFAULT_PATCH, 'osc.octave': -1, 'osc2.detune': 25, 'filter.cutoff': 800, 'drive.amount': 0.3 },
+  },
+  {
+    name: 'Synced growl',
+    patch: {
+      ...DEFAULT_PATCH,
+      'osc.octave': -1,
+      'filter.cutoff': 250,
+      'filter.resonance': 0.6,
+      'drive.amount': 0.7,
+      'sub.level': 0.5,
+      'lfo.target': 'cutoff',
+      'lfo.sync': '1/8',
+      'lfo.tempo': 140,
+      'lfo.depth': 0.5,
+    },
+  },
 ];
 
-type Variant = readonly [change: string, kind: CaseKind, make: (p: Patch) => Patch];
+/** The synced note length twice as fast, or null if the LFO isn't synced. */
+function doubleSync(p: Patch): Patch | null {
+  if (p['lfo.sync'] === 'off') return null;
+  const faster = LFO_SYNCS[LFO_SYNCS.indexOf(p['lfo.sync']) + 2];
+  return faster ? { ...p, 'lfo.sync': faster } : null;
+}
+
+/** A change to try on each base sound; null when it doesn't apply to that one. */
+type Variant = readonly [change: string, kind: CaseKind, make: (p: Patch) => Patch | null];
 
 const VARIANTS: readonly Variant[] = [
   ['identical', 'identical', (p) => ({ ...p })],
@@ -65,6 +92,8 @@ const VARIANTS: readonly Variant[] = [
   ['resonance +0.1', 'slight', (p) => setParam(p, 'filter.resonance', p['filter.resonance'] + 0.1)],
   ['release ×1.5', 'slight', (p) => setParam(p, 'amp.release', p['amp.release'] * 1.5)],
   ['detune +4 cents', 'slight', (p) => setParam(p, 'osc2.detune', p['osc2.detune'] + 4)],
+  ['drive +0.1', 'slight', (p) => setParam(p, 'drive.amount', p['drive.amount'] + 0.1)],
+  ['sub +0.15', 'slight', (p) => setParam(p, 'sub.level', p['sub.level'] + 0.15)],
   [
     'cutoff 2 octaves away',
     'large',
@@ -81,8 +110,14 @@ const VARIANTS: readonly Variant[] = [
         ? { ...p, 'lfo.target': 'cutoff', 'lfo.rate': 4, 'lfo.depth': 0.5 }
         : { ...p, 'lfo.target': 'off', 'lfo.depth': 0 },
   ],
+  ['drive added or removed', 'large', (p) => setParam(p, 'drive.amount', p['drive.amount'] > 0.3 ? 0 : 0.8)],
+  ['sub added or removed', 'large', (p) => setParam(p, 'sub.level', p['sub.level'] > 0.3 ? 0 : 0.8)],
+  ['synced LFO twice as fast', 'large', doubleSync],
 ];
 
 export const CALIBRATION_CASES: readonly CalibrationCase[] = BASES.flatMap((base) =>
-  VARIANTS.map(([change, kind, make]) => ({ base: base.name, change, kind, a: base.patch, b: make(base.patch) })),
+  VARIANTS.flatMap(([change, kind, make]) => {
+    const b = make(base.patch);
+    return b ? [{ base: base.name, change, kind, a: base.patch, b }] : [];
+  }),
 );

@@ -3,6 +3,7 @@ import {
   ampEnvelopeValue,
   filterEnvPeakOctaves,
   lfoModulationAmount,
+  lfoRateHz,
   releaseValue,
   segmentTimeConstant,
   tremoloBaseGain,
@@ -75,5 +76,15 @@ describe('LFO', () => {
   it('leaves the tremolo stage at unity for other targets', () => {
     expect(tremoloBaseGain('cutoff', 1)).toBe(1);
     expect(tremoloBaseGain('off', 1)).toBe(1);
+  });
+});
+
+describe('LFO rate', () => {
+  it('uses Rate when free and the note length at the tempo when synced', () => {
+    expect(lfoRateHz({ 'lfo.sync': 'off', 'lfo.rate': 3, 'lfo.tempo': 140 })).toBe(3);
+    expect(lfoRateHz({ 'lfo.sync': '1/4', 'lfo.rate': 3, 'lfo.tempo': 120 })).toBe(2);
+    expect(lfoRateHz({ 'lfo.sync': '1/8', 'lfo.rate': 3, 'lfo.tempo': 120 })).toBe(4);
+    expect(lfoRateHz({ 'lfo.sync': '1/8T', 'lfo.rate': 3, 'lfo.tempo': 140 })).toBeCloseTo(7);
+    expect(lfoRateHz({ 'lfo.sync': '1/2', 'lfo.rate': 3, 'lfo.tempo': 60 })).toBe(0.5);
   });
 });

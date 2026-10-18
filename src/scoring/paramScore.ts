@@ -3,15 +3,21 @@
  * on a perceptual scale, combined into a weighted 0–100 score.
  */
 import { SCORE_DEADBAND, SCORE_TOLERANCE, SCORE_WEIGHTS } from '../engine/constants';
+import { lfoRateHz } from '../engine/modulation';
 import { PARAMS, isContinuousId, type ParamId, type Patch } from '../engine/params';
 import { effectiveLfoTarget, inaudibleReason, type ListeningContext } from './audible';
 
 /**
  * Distance between your value and the target's, where 1 means "as far off
  * as the tolerance allows". Log controls compare in octaves, linear ones as
- * a fraction of the range, choices are 0 (same) or 1 (different).
+ * a fraction of the range, choices are 0 (same) or 1 (different). LFO
+ * rate and sync both compare the speed you hear, in octaves, so a free
+ * rate that matches a synced one counts as a match.
  */
 export function paramDistance(id: ParamId, mine: Readonly<Patch>, target: Readonly<Patch>): number {
+  if (id === 'lfo.rate' || id === 'lfo.sync') {
+    return Math.abs(Math.log2(lfoRateHz(mine) / lfoRateHz(target))) / SCORE_TOLERANCE['lfo.rate'];
+  }
   if (id === 'lfo.target') {
     // If the target has no audible LFO, all that matters is whether yours moves.
     if (effectiveLfoTarget(target) === 'off') return effectiveLfoTarget(mine) === 'off' ? 0 : 1;

@@ -105,7 +105,7 @@ describe('unlocking', () => {
   it('hides packs that need engine modules the engine lacks', () => {
     expect(isPackSupported(FIXTURE_PACK)).toBe(true);
     expect(isPackSupported({ ...FIXTURE_PACK, requires: { engineModules: ['filter'] } })).toBe(true);
-    expect(isPackSupported({ ...FIXTURE_PACK, requires: { engineModules: ['drive'] } })).toBe(false);
+    expect(isPackSupported({ ...FIXTURE_PACK, requires: { engineModules: ['fm'] } })).toBe(false);
   });
 });
 

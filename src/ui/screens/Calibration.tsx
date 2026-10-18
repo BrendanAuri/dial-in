@@ -128,6 +128,7 @@ export function Calibration() {
             <th>Loudness dB</th>
             <th>Brightness oct</th>
             <th>Timbre</th>
+            <th>Low end dB</th>
             <th>Sound</th>
             <th>Final</th>
             <th>Listen</th>
@@ -148,6 +149,11 @@ export function Calibration() {
                   {audio ? `${fixed(audio.distances.brightnessOctaves, 3)} → ${fixed(audio.parts.brightness, 0)}` : 'n/a'}
                 </td>
                 <td>{audio ? `${fixed(audio.distances.timbre, 1)} → ${fixed(audio.parts.timbre, 0)}` : 'n/a'}</td>
+                <td>
+                  {audio && audio.distances.lowEndDb !== null && audio.parts.lowEnd !== null
+                    ? `${fixed(audio.distances.lowEndDb)} → ${fixed(audio.parts.lowEnd, 0)}`
+                    : '–'}
+                </td>
                 <td>
                   <strong>{audio ? fixed(audio.score, 0) : 'n/a'}</strong>
                 </td>
