@@ -45,8 +45,10 @@ import {
 import { loadLibrary, saveLibrary } from '../../library/libraryStore';
 import { browserStore, requestPersistentStorage } from '../../storage/storage';
 import type { LiveAudio } from '../audio';
+import type { Navigate } from '../router';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { LibraryPanel } from '../components/LibraryPanel';
+import { ShareDialog } from '../components/ShareDialog';
 import { PlayDock } from '../components/PlayDock';
 import { SoundDialog } from '../components/SoundDialog';
 import { SynthPanel } from '../components/SynthPanel';
@@ -69,6 +71,7 @@ interface CurrentSound {
 type DialogState =
   | { readonly kind: 'saveAs' }
   | { readonly kind: 'edit'; readonly id: string }
+  | { readonly kind: 'share'; readonly name: string; readonly patch: Patch }
   | {
       readonly kind: 'confirm';
       readonly title: string;
@@ -89,10 +92,11 @@ function clampOctave(octave: number): number {
 
 interface FreePlayProps {
   readonly audio: LiveAudio;
+  readonly navigate: Navigate;
 }
 
 /** The synth as an instrument: every control, a keyboard and a library of saved sounds. */
-export function FreePlay({ audio }: FreePlayProps) {
+export function FreePlay({ audio, navigate }: FreePlayProps) {
   const [store] = useState(browserStore);
   const [loaded] = useState(() => {
     const stored = loadLibrary(store, Date.now());
@@ -520,6 +524,9 @@ export function FreePlay({ audio }: FreePlayProps) {
         <button type="button" className="button" onClick={() => setLibraryOpen(true)}>
           Sounds{userCount > 0 ? ` (${userCount})` : ''}
         </button>
+        <button type="button" className="button" onClick={() => setDialog({ kind: 'share', name: current.name, patch })}>
+          Share
+        </button>
       </div>
 
       <SynthPanel patch={patch} onChange={onParamChange} />
@@ -558,6 +565,10 @@ export function FreePlay({ audio }: FreePlayProps) {
           onDelete={onDelete}
           onFavourite={onFavourite}
           onExportOne={onExportOne}
+          onShare={(sound) => {
+            setLibraryOpen(false);
+            setDialog({ kind: 'share', name: sound.name, patch: sound.patch });
+          }}
           onExportAll={onExportAll}
           onImport={onImport}
           onDismissBackup={onDismissBackup}
@@ -583,6 +594,9 @@ export function FreePlay({ audio }: FreePlayProps) {
           onSubmit={(name, tags) => onEditDetails(editing.id, name, tags)}
           onCancel={() => setDialog(null)}
         />
+      )}
+      {dialog?.kind === 'share' && (
+        <ShareDialog name={dialog.name} patch={dialog.patch} onClose={() => setDialog(null)} onTry={(route) => navigate(route)} />
       )}
       {dialog?.kind === 'confirm' && (
         <ConfirmDialog

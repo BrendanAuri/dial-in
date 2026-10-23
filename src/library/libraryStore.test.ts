@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_PATCH } from '../engine/patch';
 import { memoryStore } from '../storage/storage';
 import { addSound, EMPTY_LIBRARY } from './library';
-import { LIBRARY_KEY, loadLibrary, saveLibrary } from './libraryStore';
+import { keepSound, LIBRARY_KEY, loadLibrary, saveLibrary } from './libraryStore';
 
 describe('library storage', () => {
   it('starts empty when nothing is stored', () => {
@@ -37,5 +37,22 @@ describe('library storage', () => {
   it('reports a failed write', () => {
     const full = { read: () => null, write: () => false, remove: () => undefined };
     expect(saveLibrary(full, EMPTY_LIBRARY)).toBe(false);
+  });
+});
+
+describe('keepSound', () => {
+  const draft = { name: 'Pad', tags: ['matched'], patch: { ...DEFAULT_PATCH, 'amp.attack': 0.8 } };
+
+  it('adds the sound to the stored library once', () => {
+    const store = memoryStore();
+    expect(keepSound(store, draft, { id: 'k1', now: 10 })).toBe('kept');
+    expect(keepSound(store, draft, { id: 'k2', now: 20 })).toBe('already');
+    expect(loadLibrary(store, 0).library.sounds.map((s) => [s.id, s.name, s.source])).toEqual([['k1', 'Pad', 'user']]);
+  });
+
+  it("won't write over a library it can't read", () => {
+    const store = memoryStore({ [LIBRARY_KEY]: 'not json' });
+    expect(keepSound(store, draft, { id: 'k1', now: 10 })).toBe('failed');
+    expect(store.read(LIBRARY_KEY)).toBe('not json');
   });
 });

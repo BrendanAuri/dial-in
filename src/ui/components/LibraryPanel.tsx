@@ -15,6 +15,7 @@ interface LibraryPanelProps {
   readonly onDelete: (id: string) => void;
   readonly onFavourite: (id: string) => void;
   readonly onExportOne: (id: string) => void;
+  readonly onShare: (sound: SavedSound) => void;
   readonly onExportAll: () => void;
   readonly onImport: (file: File) => void;
   readonly onDismissBackup: () => void;
@@ -126,6 +127,9 @@ export function LibraryPanel(props: LibraryPanelProps) {
                     )}
                     <button type="button" className="button" onClick={() => props.onDuplicate(sound.id)}>
                       Duplicate
+                    </button>
+                    <button type="button" className="button" onClick={() => props.onShare(sound)}>
+                      Share
                     </button>
                     <button type="button" className="button" onClick={() => props.onExportOne(sound.id)}>
                       Export

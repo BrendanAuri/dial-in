@@ -11,6 +11,8 @@ const ROUTES: readonly Route[] = [
   { name: 'daily', date: '2026-10-15' },
   { name: 'freeplay' },
   { name: 'calibrate' },
+  { name: 'shared', kind: 'sound', code: 'AQAT-x_9' },
+  { name: 'shared', kind: 'challenge', code: 'AQET-x_9' },
 ];
 
 describe('router', () => {
@@ -19,6 +21,13 @@ describe('router', () => {
   });
 
   it('falls back to home for anything unknown or incomplete', () => {
-    for (const hash of ['', '#', '#/', '#/nope', '#/pack', '#/play/foundations']) expect(parseRoute(hash)).toEqual({ name: 'home' });
+    for (const hash of ['', '#', '#/', '#/nope', '#/pack', '#/play/foundations', '#/p', '#/c/']) {
+      expect(parseRoute(hash)).toEqual({ name: 'home' });
+    }
+  });
+
+  it('opens shared sounds at #/p/ and challenges at #/c/', () => {
+    expect(routeHash({ name: 'shared', kind: 'sound', code: 'abc' })).toBe('#/p/abc');
+    expect(parseRoute('#/c/abc')).toEqual({ name: 'shared', kind: 'challenge', code: 'abc' });
   });
 });

@@ -1,7 +1,17 @@
 /** Persisting the sound library. One versioned key, separate from progress. */
 import { LIBRARY_SCHEMA_VERSION } from '../engine/constants';
 import type { KeyValueStore } from '../storage/storage';
-import { deserialiseSound, EMPTY_LIBRARY, serialiseSound, type Library, type SavedSound } from './library';
+import { patchesEqual } from '../engine/patch';
+import {
+  addSound,
+  deserialiseSound,
+  EMPTY_LIBRARY,
+  serialiseSound,
+  type Library,
+  type SavedSound,
+  type SoundDraft,
+  type Stamp,
+} from './library';
 
 export const LIBRARY_KEY = 'dialin.library';
 /** Unreadable data is copied here before anything can overwrite it. */
@@ -62,4 +72,19 @@ export function saveLibrary(store: KeyValueStore, library: Library): boolean {
     sounds: library.sounds.map(serialiseSound),
   };
   return store.write(LIBRARY_KEY, JSON.stringify(stored));
+}
+
+export type KeepOutcome = 'kept' | 'already' | 'failed';
+
+/**
+ * Save a sound straight to the stored library from outside Free Play (a
+ * matched round's target). Skipped if a sound with the same settings is
+ * already there. Refused if the stored library can't be read, so the rescue
+ * copy isn't the only one left.
+ */
+export function keepSound(store: KeyValueStore, draft: SoundDraft, stamp: Stamp): KeepOutcome {
+  const loaded = loadLibrary(store, stamp.now);
+  if (loaded.rescueKey) return 'failed';
+  if (loaded.library.sounds.some((sound) => patchesEqual(sound.patch, draft.patch))) return 'already';
+  return saveLibrary(store, addSound(loaded.library, draft, stamp)) ? 'kept' : 'failed';
 }

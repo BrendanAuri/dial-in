@@ -4,7 +4,7 @@
  */
 import { DEFAULT_KEYBOARD_OCTAVE, KEYBOARD_OCTAVE_RANGE, SESSION_SCHEMA_VERSION } from '../engine/constants';
 import type { Patch } from '../engine/params';
-import { deserialisePatch, serialisePatch } from '../engine/patch';
+import { DEFAULT_PATCH, deserialisePatch, patchesEqual, serialisePatch } from '../engine/patch';
 import type { VoiceMode } from '../engine/voiceManager';
 import { cleanName } from '../library/library';
 import type { KeyValueStore } from '../storage/storage';
@@ -63,4 +63,27 @@ export function saveSession(store: KeyValueStore, session: FreePlaySession): boo
       octave: session.octave,
     }),
   );
+}
+
+/** The name of Free Play's working sound if it has unsaved changes, else null. */
+export function unsavedSessionName(store: KeyValueStore): string | null {
+  const session = loadSession(store);
+  return session && !patchesEqual(session.patch, session.baseline) ? session.soundName : null;
+}
+
+/**
+ * Make a sound Free Play's working sound, keeping its voice mode and octave.
+ * Without a library id it counts as unsaved, so Free Play asks before
+ * anything replaces it.
+ */
+export function openInFreePlay(store: KeyValueStore, sound: { readonly name: string; readonly patch: Patch; readonly id: string | null }): boolean {
+  const current = loadSession(store);
+  return saveSession(store, {
+    patch: sound.patch,
+    soundId: sound.id,
+    soundName: cleanName(sound.name),
+    baseline: sound.id ? sound.patch : DEFAULT_PATCH,
+    mode: current?.mode ?? 'poly',
+    octave: current?.octave ?? DEFAULT_KEYBOARD_OCTAVE,
+  });
 }

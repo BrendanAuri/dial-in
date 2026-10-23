@@ -2,7 +2,8 @@
  * Hash routes, so the browser's back button and reloads keep you where you
  * were: #/, #/pack/foundations, #/play/foundations/brightness, #/practice,
  * #/practice/foundations/brightness, #/daily, #/daily/2026-10-15, #/free-play,
- * and #calibrate (dev page).
+ * shared links (#/p/<code> for a sound, #/c/<code> for a challenge) and
+ * #calibrate (dev page).
  */
 import { useCallback, useSyncExternalStore } from 'react';
 
@@ -13,6 +14,8 @@ export type Route =
   | { readonly name: 'practice'; readonly packId?: string; readonly levelId?: string }
   | { readonly name: 'daily'; readonly date?: string }
   | { readonly name: 'freeplay' }
+  /** A shared sound or challenge; the code says which, so either prefix opens either. */
+  | { readonly name: 'shared'; readonly kind: 'sound' | 'challenge'; readonly code: string }
   | { readonly name: 'calibrate' };
 
 export const CALIBRATION_HASH = '#calibrate';
@@ -26,6 +29,7 @@ export function parseRoute(hash: string): Route {
   if (first === 'practice') return second && third ? { name: 'practice', packId: second, levelId: third } : { name: 'practice' };
   if (first === 'daily') return second ? { name: 'daily', date: second } : { name: 'daily' };
   if (first === 'free-play') return { name: 'freeplay' };
+  if ((first === 'p' || first === 'c') && second) return { name: 'shared', kind: first === 'p' ? 'sound' : 'challenge', code: second };
   return { name: 'home' };
 }
 
@@ -44,9 +48,16 @@ export function routeHash(route: Route): string {
       return route.date ? `#/daily/${e(route.date)}` : '#/daily';
     case 'freeplay':
       return '#/free-play';
+    case 'shared':
+      return `#/${route.kind === 'sound' ? 'p' : 'c'}/${e(route.code)}`;
     case 'calibrate':
       return CALIBRATION_HASH;
   }
+}
+
+/** A full link to a route, for sharing: this page's address with the route's hash. */
+export function routeUrl(route: Route): string {
+  return `${window.location.origin}${window.location.pathname}${routeHash(route)}`;
 }
 
 function subscribe(onChange: () => void): () => void {

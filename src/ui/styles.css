@@ -507,6 +507,72 @@ select {
   -webkit-user-select: all;
 }
 
+/* Links are long and unbroken, so let them wrap anywhere. */
+.share-url {
+  color: var(--text-muted);
+  word-break: break-all;
+}
+
+/* The score to share under a challenge's result. */
+.share-card {
+  display: grid;
+  justify-items: start;
+  gap: 4px;
+}
+
+.share-card .share-box {
+  justify-self: stretch;
+}
+
+.shared-actions {
+  justify-content: flex-start;
+}
+
+/* Share dialog: choosing a challenge's controls. */
+.control-picker {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.control-picker-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.control-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 14px;
+  margin: 0;
+  padding: 4px 10px 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.control-group legend {
+  padding: 0 4px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.control-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--touch);
+  cursor: pointer;
+}
+
+.control-option input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+
 .share-actions {
   display: flex;
   flex-wrap: wrap;
@@ -901,6 +967,20 @@ select {
   margin: 0 0 12px;
   color: var(--accent);
   font-weight: 600;
+}
+
+/* The offer to keep a well-matched target, on the result card. */
+.keep-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
 }
 
 .tips {

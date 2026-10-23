@@ -3,8 +3,21 @@ import { AUDIO_MATCH_FLOOR, RESULT_TIPS, STAR_SCORES, TIP_CLOSENESS } from '../.
 import { controlName, type Patch } from '../../engine/params';
 import type { RoundResult } from '../../scoring/scoreRound';
 import type { PairSpectra } from '../../game/measureAudio';
+import type { KeepOutcome } from '../../library/libraryStore';
 import { formatParam } from '../format';
 import { SpectrumOverlay } from './SpectrumOverlay';
+
+/** Offer to keep the target, and what happened if the player did. */
+export interface KeepOffer {
+  readonly outcome: KeepOutcome | null;
+  readonly onKeep: () => void;
+}
+
+const KEPT_MESSAGES: Readonly<Record<KeepOutcome, string>> = {
+  kept: 'Saved to your sounds in Free Play.',
+  already: "It's already in your sounds.",
+  failed: "Couldn't save it: your sounds couldn't be read or the browser refused.",
+};
 
 /** Closeness at or above which a meter shows as "fair" rather than "poor". */
 const FAIR_CLOSENESS = 0.4;
@@ -25,6 +38,8 @@ interface ResultCardProps {
   readonly spectra: PairSpectra | null;
   /** e.g. "1 of 3 submits used…", or null. */
   readonly attemptsNote: string | null;
+  /** Shown once you've matched it well enough; null hides it. */
+  readonly keep: KeepOffer | null;
   /** Null hides the button. */
   readonly nextLabel: string | null;
   readonly onRetry: (() => void) | null;
@@ -140,6 +155,21 @@ export function ResultCard(props: ResultCardProps) {
             })}
           </tbody>
         </table>
+      )}
+
+      {props.keep && (
+        <div className="keep-row">
+          {props.keep.outcome === null ? (
+            <>
+              <span>Nicely matched. Keep the target to play with in Free Play?</span>
+              <button type="button" className="button" onClick={props.keep.onKeep}>
+                Keep this sound
+              </button>
+            </>
+          ) : (
+            <span role="status">{KEPT_MESSAGES[props.keep.outcome]}</span>
+          )}
+        </div>
       )}
 
       <div className="form-actions">

@@ -9,6 +9,7 @@ import { Home } from './ui/screens/Home';
 import { LevelScreen } from './ui/screens/LevelScreen';
 import { PackScreen } from './ui/screens/PackScreen';
 import { PracticeScreen } from './ui/screens/PracticeScreen';
+import { SharedScreen } from './ui/screens/SharedScreen';
 import { Start } from './ui/screens/Start';
 
 type Tab = 'home' | 'practice' | 'freeplay';
@@ -104,6 +105,8 @@ function Screen({ route, audio, navigate }: { readonly route: Route; readonly au
     case 'daily':
       return <DailyScreen key={route.date ?? 'today'} audio={audio} date={route.date} navigate={navigate} />;
     case 'freeplay':
-      return <FreePlay audio={audio} />;
+      return <FreePlay audio={audio} navigate={navigate} />;
+    case 'shared':
+      return <SharedScreen key={route.code} audio={audio} code={route.code} navigate={navigate} />;
   }
 }

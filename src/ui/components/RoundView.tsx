@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import type { Level, Pack } from '../../content/schema';
 import { ComparePlayer } from '../../engine/comparePlayer';
-import { DEFAULT_HOLD_TIME, HINT_COST, LIVE_START_DELAY } from '../../engine/constants';
+import { DEFAULT_HOLD_TIME, HINT_COST, KEEP_MIN_SCORE, LIVE_START_DELAY } from '../../engine/constants';
 import { midiToNoteName } from '../../engine/notes';
 import { PARAM_IDS, type ParamId, type Patch } from '../../engine/params';
 import { patchesEqual, setParam } from '../../engine/patch';
@@ -10,9 +10,12 @@ import { passMarkOf } from '../../game/progress';
 import { formatReplayCode } from '../../game/replayCode';
 import { generateRound } from '../../game/targetGenerator';
 import type { ListeningContext } from '../../scoring/audible';
+import { newId } from '../../library/ids';
+import { keepSound, type KeepOutcome } from '../../library/libraryStore';
 import { hintFor } from '../../scoring/feedback';
 import { scoreParams } from '../../scoring/paramScore';
 import { scoreRound, type RoundResult } from '../../scoring/scoreRound';
+import { browserStore, requestPersistentStorage } from '../../storage/storage';
 import type { LiveAudio } from '../audio';
 import { isButtonLike, isTypingTarget } from '../hooks';
 import { ResultCard } from './ResultCard';
@@ -40,11 +43,18 @@ export interface Attempts {
 
 const NO_ATTEMPTS: Attempts = { submits: 0, best: null, finished: false };
 
-interface RoundViewProps {
+/** What a round plays: a target to match, where the knobs start, and which ones can move. */
+export interface PlayableRound {
+  readonly note: number;
+  readonly start: Patch;
+  readonly target: Patch;
+  /** Controls the player can change, in display order. */
+  readonly unlocked: readonly ParamId[];
+}
+
+/** Props every round has, however it was made. */
+interface RoundCommonProps {
   readonly audio: LiveAudio;
-  readonly pack: Pack;
-  readonly level: Level;
-  readonly seed: number;
   /** Shown at the top left, e.g. "Round 2 of 5". */
   readonly heading: ReactNode;
   /** Label for moving on from the result card, e.g. "Next round"; null for no button. */
@@ -60,14 +70,54 @@ interface RoundViewProps {
   readonly onAttempts?: (attempts: Attempts) => void;
 }
 
+interface RoundViewProps extends RoundCommonProps {
+  readonly pack: Pack;
+  readonly level: Level;
+  readonly seed: number;
+}
+
+/** A level's round, generated from its seed. Mount with a new key per round. */
+export function RoundView({ pack, level, seed, ...common }: RoundViewProps) {
+  const round = useMemo(() => generateRound(pack, level, seed), [pack, level, seed]);
+  const soundType = level.generator.templates?.find((t) => t.id === round.template)?.title ?? null;
+  return (
+    <RoundPlayer
+      {...common}
+      round={round}
+      intro={level.intro}
+      passMark={passMarkOf(level)}
+      replayCode={formatReplayCode({ packId: pack.id, levelId: level.id, packVersion: pack.version, seed })}
+      soundType={soundType}
+      keepName={soundType ?? level.title}
+      keepTags={soundType ? ['matched', soundType] : ['matched']}
+    />
+  );
+}
+
+interface RoundPlayerProps extends RoundCommonProps {
+  /** Keep the same object for the round's lifetime. */
+  readonly round: PlayableRound;
+  readonly intro: string;
+  readonly passMark: number;
+  /** Shown with a Copy button, or null for rounds that have none. */
+  readonly replayCode: string | null;
+  /** The target's sound type ("Pad"), shown with the answer. */
+  readonly soundType: string | null;
+  /** Name and tags for the target if the player keeps it. */
+  readonly keepName: string;
+  readonly keepTags: readonly string[];
+  /** Shown under the result once there is one, e.g. a share box. */
+  readonly afterResult?: ReactNode;
+}
+
 /**
  * One round: hear the target, match it with the unlocked controls, submit
  * for a score and tips, retry or move on. Mount with a new key per round.
  */
-export function RoundView(props: RoundViewProps) {
-  const { audio, pack, level, seed, heading, nextLabel, onNext, onFirstResult, notice, rules, onAttempts } = props;
+export function RoundPlayer(props: RoundPlayerProps) {
+  const { audio, round, heading, nextLabel, onNext, onFirstResult, notice, rules, onAttempts, passMark, soundType } = props;
+  const code = props.replayCode;
   const saved = props.saved ?? NO_ATTEMPTS;
-  const round = useMemo(() => generateRound(pack, level, seed), [pack, level, seed]);
   const [mine, setMine] = useState<Patch>(() => ({ ...round.start }));
   const [result, setResult] = useState<RoundResult | null>(null);
   const [spectra, setSpectra] = useState<PairSpectra | null>(null);
@@ -78,16 +128,14 @@ export function RoundView(props: RoundViewProps) {
   const [hint, setHint] = useState<string | null>(null);
   const [scoring, setScoring] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [kept, setKept] = useState<KeepOutcome | null>(null);
   const [player] = useState(() => new ComparePlayer(audio.ctx, audio.output));
   const playback = useSyncExternalStore(player.subscribe, player.getState);
   const submitToken = useRef(0);
   const reportedFirst = useRef(saved.submits > 0);
 
-  const passMark = passMarkOf(level);
   const context: ListeningContext = useMemo(() => ({ note: round.note, holdTime: DEFAULT_HOLD_TIME }), [round]);
   const locked = useMemo(() => new Set(PARAM_IDS.filter((id) => !round.unlocked.includes(id))), [round]);
-  const code = formatReplayCode({ packId: pack.id, levelId: level.id, packVersion: pack.version, seed });
-  const soundType = level.generator.templates?.find((t) => t.id === round.template)?.title ?? null;
   const changedSinceSubmit = result !== null && !patchesEqual(result.mine, mine);
   const isFinished = (count: number, top: number | null, revealed: boolean): boolean =>
     rules === undefined || revealed || count >= rules.maxSubmits || (top ?? 0) >= rules.finishScore;
@@ -95,6 +143,8 @@ export function RoundView(props: RoundViewProps) {
   const submitsLeft = rules === undefined ? Infinity : rules.maxSubmits - submits;
   const canSubmit = !scoring && (rules === undefined || (!finished && submitsLeft > 0 && (result === null || changedSinceSubmit)));
   const showNext = nextLabel !== null && result !== null && !changedSinceSubmit && (rules === undefined || finished);
+  // Only once the answer is showing, so a daily's target can't be kept and looked at early.
+  const canKeep = finished && (best ?? 0) >= KEEP_MIN_SCORE;
 
   useEffect(() => {
     player.updateMine(mine, audio.ctx.currentTime);
@@ -198,7 +248,13 @@ export function RoundView(props: RoundViewProps) {
   );
 
   const copyCode = (): void => {
-    void navigator.clipboard?.writeText(code).then(() => setCopied(true));
+    if (code !== null) void navigator.clipboard?.writeText(code).then(() => setCopied(true));
+  };
+
+  const keep = (): void => {
+    const draft = { name: props.keepName, tags: props.keepTags, patch: round.target };
+    setKept(keepSound(browserStore(), draft, { id: newId(), now: Date.now() }));
+    void requestPersistentStorage();
   };
 
   // Space: target · M: mine · B: A/B · Enter: submit, then move on.
@@ -238,7 +294,7 @@ export function RoundView(props: RoundViewProps) {
           {notice}
         </p>
       )}
-      <p className="level-intro">{level.intro}</p>
+      <p className="level-intro">{props.intro}</p>
 
       {result && (
         <ResultCard
@@ -256,11 +312,13 @@ export function RoundView(props: RoundViewProps) {
               : null
           }
           nextLabel={nextLabel}
+          keep={canKeep ? { outcome: kept, onKeep: keep } : null}
           onRetry={rules === undefined || (!finished && submitsLeft > 0) ? () => setResult(null) : null}
           onReveal={rules && !finished ? reveal : null}
           onNext={next}
         />
       )}
+      {result && props.afterResult}
 
       {hint && !result && (
         <p className="hint-text" role="status">
@@ -279,12 +337,16 @@ export function RoundView(props: RoundViewProps) {
         <button type="button" className="button" onClick={() => setMine({ ...round.start })}>
           Reset knobs
         </button>
-        <span className="replay-code">
-          Replay code <code>{code}</code>
-        </span>
-        <button type="button" className="button" onClick={copyCode}>
-          {copied ? 'Copied' : 'Copy'}
-        </button>
+        {code !== null && (
+          <>
+            <span className="replay-code">
+              Replay code <code>{code}</code>
+            </span>
+            <button type="button" className="button" onClick={copyCode}>
+              {copied ? 'Copied' : 'Copy'}
+            </button>
+          </>
+        )}
       </div>
 
       <p className="hint">Space plays the target · M plays yours · B for A/B · Enter to submit</p>

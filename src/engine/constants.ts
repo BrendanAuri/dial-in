@@ -230,6 +230,19 @@ export const DAILY_SUBMITS = 3;
 /** Scoring at least this ends a daily early and shows the answer. */
 export const DAILY_FINISH_SCORE = 97;
 
+// ── Sharing and keeping ──────────────────────────────────────────────────
+/** Format version at the start of every share code. Adding controls doesn't need a new one. */
+export const SHARE_CODE_VERSION = 1;
+/** Continuous values are stored as their knob position, in this many steps (16 bits). */
+export const SHARE_VALUE_STEPS = 0xffff;
+/** Characters of check value at the end of a share code, to catch links that were cut short or mistyped. */
+export const SHARE_CHECK_CHARS = 2;
+/** Scoring at least this on a round offers to keep the target as a sound. */
+export const KEEP_MIN_SCORE = 90;
+/** Notes a challenge can be played on, lowest first. */
+export const CHALLENGE_NOTES = ['C1', 'C2', 'C3', 'C4', 'C5'] as const;
+export const DEFAULT_CHALLENGE_NOTE = 'C3';
+
 // ── Sound library ────────────────────────────────────────────────────────
 export const LIBRARY_SCHEMA_VERSION = 1;
 export const SESSION_SCHEMA_VERSION = 1;

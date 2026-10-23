@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_KEYBOARD_OCTAVE } from '../engine/constants';
 import { DEFAULT_PATCH } from '../engine/patch';
 import { memoryStore } from '../storage/storage';
-import { loadSession, saveSession, SESSION_KEY, type FreePlaySession } from './session';
+import type { Patch } from '../engine/params';
+import { loadSession, openInFreePlay, saveSession, SESSION_KEY, unsavedSessionName, type FreePlaySession } from './session';
 
 const session: FreePlaySession = {
   patch: { ...DEFAULT_PATCH, 'filter.cutoff': 500 },
@@ -38,5 +39,20 @@ describe('Free Play session', () => {
     expect(loaded?.baseline).toEqual(session.patch);
     store.write(SESSION_KEY, JSON.stringify({ ...data, octave: 'high' }));
     expect(loadSession(store)?.octave).toBe(DEFAULT_KEYBOARD_OCTAVE);
+  });
+});
+
+describe('opening a sound in Free Play', () => {
+  const shared: Patch = { ...DEFAULT_PATCH, 'filter.cutoff': 700 };
+
+  it('makes it the working sound, unsaved unless it has a library id', () => {
+    const store = memoryStore();
+    saveSession(store, { patch: DEFAULT_PATCH, soundId: null, soundName: 'Old', baseline: DEFAULT_PATCH, mode: 'mono', octave: 2 });
+    expect(unsavedSessionName(store)).toBeNull();
+    openInFreePlay(store, { name: 'Shared', patch: shared, id: null });
+    expect(loadSession(store)).toMatchObject({ patch: shared, soundId: null, soundName: 'Shared', mode: 'mono', octave: 2 });
+    expect(unsavedSessionName(store)).toBe('Shared');
+    openInFreePlay(store, { name: 'Kept', patch: shared, id: 'abc' });
+    expect(unsavedSessionName(store)).toBeNull();
   });
 });

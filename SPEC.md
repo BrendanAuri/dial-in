@@ -14,6 +14,7 @@ Inspired by Syntorial. The core content is genre-neutral: it teaches synthesis f
 | **Practice** | Endless rounds from levels you've already completed. No progression. (Earlier drafts called this "free play".) |
 | **Free Play** | The synth on its own: every control, a playable keyboard and a library of saved sounds. No targets, no scores. |
 | **Daily challenge** | A new target every day, the same for everyone, with streaks and a spoiler-free result to share. No backend needed (see §11). |
+| **Challenges** | A friend's sound to match, opened from a link they made in Free Play, with the controls they chose (see §10.1). |
 
 ## 2. Goals and non-goals
 
@@ -27,7 +28,7 @@ Inspired by Syntorial. The core content is genre-neutral: it teaches synthesis f
 
 **v1 content**: the **Foundations** pack (§7.2). Milestone 10 added the first expansion pack, **Bass Music** (§7.3).
 
-**Non-goals (v1)**: user accounts, backend, multiplayer, app-store builds, MIDI input, downloadable or paid packs. These are stretch goals (see Milestone 11).
+**Non-goals (v1)**: user accounts, backend, multiplayer, app-store builds, MIDI input, downloadable or paid packs. These are stretch goals (see Milestone 12).
 
 ## 3. Tech stack
 
@@ -72,6 +73,8 @@ src/
     targetGenerator.ts  # builds targets from a level's GeneratorSpec
     packs.ts         # pack registry, validation, prerequisites, unlock logic
     daily.ts         # date -> daily number and seeds, streaks, share text
+    shareCode.ts     # sounds and challenges as short URL-safe codes
+    challenge.ts     # a sound as a round: chosen controls, playability, share texts
     progress.ts      # persistence, versioned schema
   library/
     library.ts       # saved sounds: save, load, tags, search, import/export
@@ -148,6 +151,7 @@ Implementation notes:
 3. **Submit** → score, top three feedback tips, and a reveal table (target vs mine for every unlocked control, with a closeness meter, each control's tip, and a reason for any control that isn't scored) with both spectra overlaid (see Spectrum in §12). Changing the sound after submitting shows a note and turns Next back into Submit, so it can be rescored.
 4. **Retry** the same target, keeping your knobs (best score kept), or **Next**.
 5. **Hint** (optional): costs 10 points; names the control that's furthest off and which direction to move it, without the value.
+6. **Keep this sound**: once the answer is showing and your best on the round is `KEEP_MIN_SCORE` (90) or more, the result card offers to save the target to your Free Play library, named after its sound type or level ("Pad", "Brightness") and tagged "matched". In a daily that's only after you've finished, so a target can't be kept and inspected early. A sound with the same settings already in the library isn't added twice.
 
 Target generator: seeded RNG; the result card shows a replay code (`packId/levelId@packVersion:seed`) so any round can be replayed. Reject near-silent or too-short targets (a rough loudness estimate from the envelope and filter), and targets too close to the starting knob positions: at least one of the level's new controls must be audible in the target and far enough off that the starting knobs would score at most 0.5 closeness on it.
 
@@ -355,7 +359,19 @@ The synth as an instrument: no targets, no scores.
   - Factory presets from packs (`Pack.presets`) are read-only; saving an edited preset creates a user copy. They're synced into the library each time Free Play opens: new ones added, changed ones refreshed (keeping favourites), ones no longer shipped removed. They're listed after your own sounds under Recent, without a date, and are available whether or not their pack is unlocked. The Sounds button counts only your own sounds.
   - **Export / import** the whole library (your own sounds; presets come with the app) or a single sound as a JSON file, so sounds survive cleared browser data and can move between devices. Imports always become new user sounds; ones already in the library (same name and settings) are skipped.
   - Prompt about unsaved changes before loading another sound or starting a new one. Leaving Free Play needs no prompt: the working sound is kept (see Session).
-  - If stored library data can't be read, keep a copy of it under a separate key rather than overwriting it.
+  - If stored library data can't be read, keep a copy of it under a separate key rather than overwriting it. Keeping a sound from a round or a link refuses to save in that case, so the copy isn't the only one left.
+- **Share**: the toolbar's Share button (the working sound) and each library sound's Share action open the share dialog (§10.1).
+
+### 10.1 Sharing and challenges
+
+Sounds travel as links, with no backend.
+
+- **Share codes** (`game/shareCode.ts`): a sound as a short URL-safe string, about 25–50 characters. Bytes: format version, kind (sound or challenge), the number of controls, a mask of the controls that differ from the defaults and two bytes for each of them, then for a challenge the solver's controls (another mask) and the note, then the name as UTF-8. That's base64url-encoded, with two characters of check value (`hashString`) on the end, so a link that was cut short or mistyped is caught instead of opening a different sound. Continuous values are their knob position in 16 bits, choices their option index. Controls are numbered by `SHARE_ORDER`, which only ever grows at the end, and every value takes two bytes, so adding controls never needs a new format version: older versions of the app skip ones they don't know. A test pins one code, so a format change can't quietly break links already sent.
+- **Links**: `#/p/<code>` for a sound, `#/c/<code>` for a challenge, on the app's own address (`routeUrl`). Either prefix opens either kind; the code says which. A link that doesn't decode says so (cut short, or made by a newer version) instead of guessing.
+- **Share dialog**: share **the sound** (a link and an invite line, `"Reese": a sound made in Dial In.`) or **a challenge**. For a challenge you choose the note it plays on (C1–C5, C3 by default) and the controls the solver gets, starting from the ones your sound moves away from their defaults that can be heard on that note ("What this sound changes"), with All and None. It needs at least one chosen control that can be heard and starts far enough off to earn a tip; otherwise it says why and offers no link. **Try it yourself** opens the challenge.
+- **A shared sound** (`#/p/`): its name, **Play** (a short note), **Save to my sounds** (tagged "shared"; skipped if those settings are already there) and **Open in Free Play**, which makes it the working sound: the saved copy if there is one, else an unsaved sound. If Free Play's working sound has unsaved changes, it asks first.
+- **A challenge** (`#/c/`): a round (`RoundPlayer`) where the chosen controls start at their defaults and everything else is set as in the sound and shown locked. Normal round rules: retries, hints, the answer after each submit, the default pass mark, and Keep this sound at 90+. It counts towards your weakest controls like Practice, but nothing else is saved. After a submit it offers your best score to share with the same link (`Dial In challenge "Growl" · 92 ★★. Can you beat it?`) and a way to make your own.
+- Share texts carry names and scores only, never settings.
 
 ## 11. Daily challenge
 
@@ -377,7 +393,7 @@ One new target per tier per day, identical for every player, with no backend.
 - Portrait-first, dark theme, large touch targets.
 - **Start screen** with a "Tap to start" button that resumes the AudioContext (mobile browsers require a user gesture). Show a tip that the phone's silent switch can mute audio, and recommend headphones: phone speakers can't reproduce low bass notes.
 - **PWA**: installable with a manifest (standalone, dark theme, 192/512 and maskable icons, Apple touch icon and iOS meta tags). Everything is precached, so after the first visit the app loads and plays rounds offline. A new version shows "A new version of Dial In is ready" with **Reload** / **Later**, so an update never interrupts a round. A first-time notice says it now works offline. Home shows an **Install Dial In** card (the browser's install prompt where there is one; Share → Add to Home Screen instructions on iPhone and iPad), dismissible for good. The first progress save asks for persistent storage.
-- **Navigation**: tabs for Home, Practice and Free Play. Screens are hash routes (`#/`, `#/pack/<pack>`, `#/play/<pack>/<level>`, `#/practice[/<pack>/<level>]`, `#/daily[/<date>]`, `#/free-play`), so the back button and reloads keep your place.
+- **Navigation**: tabs for Home, Practice and Free Play. Screens are hash routes (`#/`, `#/pack/<pack>`, `#/play/<pack>/<level>`, `#/practice[/<pack>/<level>]`, `#/daily[/<date>]`, `#/free-play`, and shared links `#/p/<code>` and `#/c/<code>`), so the back button and reloads keep your place.
 - **Home**: continue where you left off (a level run in progress, else the next unpassed level), today's daily (number, streak, each tier's status, or which level unlocks it), packs with progress and stars, and "your weakest controls" with a Practise button each.
 - **Pack screen**: chapters and levels, each showing its new controls and whether it's locked, new, in progress or passed (best average and stars).
 - **Level run**: the level's rounds one after another ("Round 2 of 5" with progress dots), then a summary: average, stars, pass or not, each round's score, and Next level / Play again / All levels.
@@ -409,7 +425,8 @@ Build in order. Each milestone ends with the app running, `npm run test` and `np
 8. **Spectrum views**: live analyser and result overlay.
 9. **PWA and mobile polish**: manifest, icons, offline cache, update prompt, install card, deploy configs (GitHub Pages workflow, `netlify.toml`; `DIAL_IN_BASE` for sub-paths), and an iOS checklist ([docs/ios-testing.md](docs/ios-testing.md)) to run on a real device after deploying.
 10. **First expansion pack**: Bass Music (§7.3). Engine modules with neutral defaults: sub oscillator, drive and tempo-synced LFO (§5). Scoring for them, including a low-end part in the audio score (§8). Factory presets in the Free Play library, bass templates for Randomise, two daily tiers. A fingerprint test proves Foundations rounds didn't change.
-11. **Stretch**: sample-based targets (audio-only scoring), Web MIDI keyboard input, Capacitor native builds (with daily reminder notifications), and anything promoted from the idea backlog (§17).
+11. **Share and keep**: keep a matched target as a sound, share codes and links for sounds, and challenges made from them (§6, §10.1). Rounds split into `RoundPlayer` (any round) and `RoundView` (a level's round from its seed).
+12. **Stretch**: sample-based targets (audio-only scoring), Web MIDI keyboard input, Capacitor native builds (with daily reminder notifications), and anything promoted from the idea backlog (§17).
 
 ## 15. Conventions
 
@@ -441,10 +458,8 @@ Promote, park or delete. ★ = suggested first.
 - **Difficulty settings**: Relaxed / Standard / Pro scale tolerances and pass marks; replay passed levels on Pro for extra stars.
 - **Ear profile**: a radar chart of per-control accuracy on the home screen, extending "your weakest controls".
 
-**Linking the game and Free Play**
-- ★ **Keep what you match**: after scoring 90+ on a round, save the target to your library in one tap (tagged "Matched"). Learn mode then gives you sounds to keep, and Free Play fills up as you play.
-- ★ **Share codes**: encode a patch as a short URL-safe string (`/#/p/<code>`) so sounds can be shared without a backend.
-- ★ **Make it a challenge**: turn a saved sound into a round (choose which controls the solver gets) and share it as a code, so friends can try to match your sounds. Still no backend.
+**Linking the game and Free Play** (keep what you match, share codes and challenges arrived in Milestone 11)
+- **Challenge replies**: after matching a challenge, send back one of your own in a tap.
 - **WAV export**: render a sound (one-shot or riff) to WAV with `OfflineAudioContext`, to drop into a DAW. A hand-written WAV encoder, no dependency.
 
 **Daily challenge extras**
