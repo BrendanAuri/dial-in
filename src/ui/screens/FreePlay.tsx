@@ -506,27 +506,31 @@ export function FreePlay({ audio, navigate }: FreePlayProps) {
       </header>
 
       <div className="toolbar" role="toolbar" aria-label="Sound">
-        <button type="button" className="button" onClick={onUndo} disabled={!canUndo(history)} title="Undo (Ctrl+Z)">
-          ↶ Undo
-        </button>
-        <button type="button" className="button" onClick={onRedo} disabled={!canRedo(history)} title="Redo (Ctrl+Shift+Z)">
-          ↷ Redo
-        </button>
-        <button type="button" className="button" onClick={onNew} title="Start a new sound from the init patch">
-          New
-        </button>
-        <button type="button" className="button" onClick={onRandomise}>
-          Randomise
-        </button>
-        <button type="button" className="button primary" onClick={onSave}>
-          Save
-        </button>
-        <button type="button" className="button" onClick={() => setLibraryOpen(true)}>
-          Sounds{userCount > 0 ? ` (${userCount})` : ''}
-        </button>
-        <button type="button" className="button" onClick={() => setDialog({ kind: 'share', name: current.name, patch })}>
-          Share
-        </button>
+        <div className="toolbar-group">
+          <button type="button" className="button" onClick={onUndo} disabled={!canUndo(history)} title="Undo (Ctrl+Z)" aria-label="Undo">
+            ↶<span className="toolbar-label"> Undo</span>
+          </button>
+          <button type="button" className="button" onClick={onRedo} disabled={!canRedo(history)} title="Redo (Ctrl+Shift+Z)" aria-label="Redo">
+            ↷<span className="toolbar-label"> Redo</span>
+          </button>
+          <button type="button" className="button" onClick={onNew} title="Start a new sound from the init patch">
+            New
+          </button>
+          <button type="button" className="button" onClick={onRandomise}>
+            Randomise
+          </button>
+        </div>
+        <div className="toolbar-group">
+          <button type="button" className="button primary" onClick={onSave}>
+            Save
+          </button>
+          <button type="button" className="button" onClick={() => setLibraryOpen(true)}>
+            Sounds{userCount > 0 ? ` (${userCount})` : ''}
+          </button>
+          <button type="button" className="button" onClick={() => setDialog({ kind: 'share', name: current.name, patch })}>
+            Share
+          </button>
+        </div>
       </div>
 
       <SynthPanel patch={patch} onChange={onParamChange} />

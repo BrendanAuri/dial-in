@@ -747,8 +747,35 @@ select {
   padding: 4px 0 8px;
 }
 
+/*
+ * Phones: each group (editing, saving) fills a row, its buttons stretched
+ * to the width, and Undo and Redo show just their arrows. Wider screens
+ * put everything on one row.
+ */
+.toolbar-group {
+  display: flex;
+  flex: 1 1 100%;
+  gap: 8px;
+}
+
 .toolbar .button {
+  flex: 1 1 auto;
   padding: 0 14px;
+}
+
+.toolbar-label {
+  display: none;
+}
+
+@media (min-width: 640px) {
+  .toolbar-group,
+  .toolbar .button {
+    flex: 0 0 auto;
+  }
+
+  .toolbar-label {
+    display: inline;
+  }
 }
 
 .button:disabled {
